@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SSE.Core\SSE.Core.csproj" />
+    <ProjectReference Include="..\SSE.Cryptography\SSE.Cryptography.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Indices\" />
+  </ItemGroup>
+
+</Project>
