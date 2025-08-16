@@ -51,14 +51,27 @@ namespace SSE.Core.Models
             return new List<(byte[], byte[])>();
         }
 
+
+
         public bool ContainsCrossTag(BigInteger crossTag)
         {
             return crossSet.Contains(crossTag);
         }
 
-        public void Retrieve()
+        /// <summary>
+        /// Retrieves tuples associated with a specific search tag
+        /// </summary>
+        /// <param name="stag">The search tag (base64 encoded)</param>
+        /// <returns>List of tuples (encrypted identifier, inverse cross identifier)</returns>
+        public List<(byte[] e, byte[] y)> Retrieve(string stag)
         {
-            // Implementation for retrieving documents will be added later
+            // Lookup tuples using the secure token
+            if (secureIndex.TryGetValue(stag, out var tuples))
+            {
+                return tuples;
+            }
+
+            return new List<(byte[], byte[])>();
         }
     }
 }
