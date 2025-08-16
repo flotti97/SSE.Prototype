@@ -192,7 +192,7 @@ namespace SSE.Client.Schemes
             string sterm = keywords[0];
 
             // Get the search tokens for s-term
-            var stokens = edb.GetTag(keys.IndexKey, sterm);
+            var stokens = edb.GetTag(Convert.ToBase64String(CryptoUtils.Randomize(keys.IndexKey, sterm)));
             byte[] labelKey = CryptoUtils.Randomize(keys.MasterKey, sterm);
 
             // If there are no matching documents for the s-term, return empty result
@@ -202,7 +202,9 @@ namespace SSE.Client.Schemes
             // If it's a single-term query, just return all matching documents
             if (keywords.Count == 1)
             {
-                return stokens.Select(token => CryptoUtils.Decrypt(labelKey, token.Item1)).ToList();
+                return stokens
+                    .Select(token => CryptoUtils.Decrypt(labelKey, token.Item1))
+                    .ToList();
             }
 
             // For multi-term queries, check each document against all x-terms

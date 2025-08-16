@@ -36,14 +36,11 @@ namespace SSE.Core.Models
             return key;
         }
 
-        public List<(byte[], byte[])> GetTag(byte[] indexKey, string keyword)
+        public List<(byte[], byte[])> GetTag(string encryptedKeyword)
         {
-            // Generate the secure token for lookup
-            string secureToken = Convert.ToBase64String(
-                CryptoUtils.Randomize(indexKey, keyword));
 
             // Retrieve the tuples associated with this token
-            if (secureIndex.TryGetValue(secureToken, out var tuples))
+            if (secureIndex.TryGetValue(encryptedKeyword, out var tuples))
             {
                 return tuples;
             }
