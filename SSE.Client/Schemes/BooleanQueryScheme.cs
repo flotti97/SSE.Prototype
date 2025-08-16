@@ -106,6 +106,151 @@ namespace SSE.Client.Schemes
 
             return crossTag;
         }
+
+        /// <summary>
+        /// Generates the search tokens for a boolean query.
+        /// </summary>
+        /// <param name="keywords">List of keywords where the first keyword is the s-term and the remaining are x-terms.</param>
+        /// <returns>Search tag for the s-term and a function to generate cross tokens for each iteration.</returns>
+        public (string stag, Func<int, List<BigInteger>> xtokenGenerator) GenerateSearchTokens(List<string> keywords)
+        {
+            if (keywords == null || keywords.Count == 0)
+                throw new ArgumentException("Query must contain at least one keyword", nameof(keywords));
+
+            // First keyword is the s-term (most selective term)
+            string sterm = keywords[0];
+
+            // stag ← TSetGetTag(KT, w1)
+            string stag = Convert.ToBase64String(CryptoUtils.Randomize(keys.IndexKey, sterm));
+
+            // Create a function that will generate xtokens for each counter value
+            Func<int, List<BigInteger>> xtokenGenerator = counter =>
+            {
+                // For each iteration c, generate xtoken[c] = (xtoken[c,2], ..., xtoken[c,n])
+                List<BigInteger> xtokens = new List<BigInteger>();
+
+                // Skip the first keyword (s-term) and process each x-term
+                for (int i = 1; i < keywords.Count; i++)
+                {
+                    string xterm = keywords[i];
+
+                    // z ← Fp(KZ, w1||c) - Get the tag for sterm with counter c
+                    var z = CryptoUtils.DeriveKey(keys.TagKey, sterm, counter);
+
+                    // Fp(KX, wi) - Get the cross tag randomizer for the x-term
+                    var xRandomizer = CryptoUtils.Randomize(keys.CrossTagKey, xterm);
+                    var xRandomizerValue = new BigInteger(xRandomizer, isBigEndian: true, isUnsigned: true);
+
+                    // xtoken[c,i] = g^(z * Fp(KX,wi))
+                    var xtoken = BigInteger.ModPow(
+                        CryptoUtils.Generator(CryptoUtils.Prime256Bit),
+                        CryptoUtils.ModMultiply(
+                            new BigInteger(z, isBigEndian: true, isUnsigned: true),
+                            xRandomizerValue,
+                            CryptoUtils.Prime256Bit
+                        ),
+                        CryptoUtils.Prime256Bit
+                    );
+
+                    xtokens.Add(xtoken);
+                }
+
+                return xtokens;
+            };
+
+            return (stag, xtokenGenerator);
+        }
+
+        /// <summary>
+        /// Decrypts the search results using the client's master key
+        /// </summary>
+        public List<string> DecryptSearchResults(string sterm, List<byte[]> encryptedResults)
+        {
+            byte[] labelKey = CryptoUtils.Randomize(keys.MasterKey, sterm);
+
+            var results = new List<string>();
+            foreach (var e in encryptedResults)
+            {
+                string docId = CryptoUtils.Decrypt(labelKey, e);
+                results.Add(docId);
+            }
+
+            return results;
+        }
+
+        /// <summary>
+        /// Executes a boolean query and returns the matching document identifiers.
+        /// </summary>
+        /// <param name="edb">The encrypted database to search.</param>
+        /// <param name="keywords">List of keywords where the first is the s-term and others are x-terms.</param>
+        /// <returns>A list of document identifiers that match all keywords in the query.</returns>
+        public List<string> ExecuteQuery(BooleanEncryptedDatabase edb, List<string> keywords)
+        {
+            if (keywords == null || keywords.Count == 0)
+                throw new ArgumentException("Query must contain at least one keyword", nameof(keywords));
+
+            string sterm = keywords[0];
+
+            // Get the search tokens for s-term
+            var stokens = edb.GetTag(keys.IndexKey, sterm);
+            byte[] labelKey = CryptoUtils.Randomize(keys.MasterKey, sterm);
+
+            // If there are no matching documents for the s-term, return empty result
+            if (stokens.Count == 0)
+                return new List<string>();
+
+            // If it's a single-term query, just return all matching documents
+            if (keywords.Count == 1)
+            {
+                return stokens.Select(token => CryptoUtils.Decrypt(labelKey, token.Item1)).ToList();
+            }
+
+            // For multi-term queries, check each document against all x-terms
+            var results = new List<string>();
+
+            // Process each document from s-term results
+            int counter = 0;
+            foreach (var (encrypted, y) in stokens)
+            {
+                // Decrypt the document ID
+                string docId = CryptoUtils.Decrypt(labelKey, encrypted);
+                bool matchesAllXTerms = true;
+
+                // Check each x-term
+                for (int i = 1; i < keywords.Count; i++)
+                {
+                    string xterm = keywords[i];
+
+                    // Create cross tag for xterm and this document
+                    var crossIdentifier = CryptoUtils.Randomize(keys.IdentifierKey, docId, CryptoUtils.Prime256Bit);
+                    var crossTagRandomizer = CryptoUtils.Randomize(keys.CrossTagKey, xterm);
+                    var randomizerValue = new BigInteger(crossTagRandomizer, isBigEndian: true, isUnsigned: true);
+
+                    var crossTag = BigInteger.ModPow(
+                        CryptoUtils.Generator(CryptoUtils.Prime256Bit),
+                        CryptoUtils.ModMultiply(randomizerValue, crossIdentifier, CryptoUtils.Prime256Bit),
+                        CryptoUtils.Prime256Bit
+                    );
+
+                    // If this document doesn't contain the x-term, exclude it
+                    if (!edb.ContainsCrossTag(crossTag))
+                    {
+                        matchesAllXTerms = false;
+                        break;
+                    }
+                }
+
+                // If document matches all terms, add it to results
+                if (matchesAllXTerms)
+                {
+                    results.Add(docId);
+                }
+
+                counter++;
+            }
+
+            return results;
+        }
     }
 
     public record struct KeyCollection()
