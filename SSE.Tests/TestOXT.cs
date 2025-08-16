@@ -23,54 +23,50 @@ namespace SSE.Tests
         [TestMethod]
         public void SingleKeywordNoResult()
         {
-            //Arrange
+            // Arrange
             var db = CreateTestDatabase();
             var oxt = new BooleanQueryScheme();
             var (keys, edb) = oxt.Setup(db);
-            var keyword = "orange";
+            var keywords = new List<string> { "orange" };
 
-            //Act
-            var tags = edb.GetTag(keys.IndexKey, keyword);
+            // Act
+            var documentIds = oxt.ExecuteQuery(edb, keywords);
 
-            //Assert
-            Assert.IsTrue(tags.Count == 0);
+            // Assert
+            Assert.AreEqual(0, documentIds.Count);
         }
 
         [TestMethod]
         public void SingleKeywordOneResult()
         {
-            //Arrange
+            // Arrange
             var db = CreateTestDatabase();
             var oxt = new BooleanQueryScheme();
             var (keys, edb) = oxt.Setup(db);
-            var keyword = "grape";
+            var keywords = new List<string> { "grape" };
 
-            //Act
-            var tags = edb.GetTag(keys.IndexKey, keyword);
-            byte[] labelKey = CryptoUtils.Randomize(keys.MasterKey, keyword);
-            var documentIds = DecryptDocIds(labelKey, tags).ToList();
+            // Act
+            var documentIds = oxt.ExecuteQuery(edb, keywords);
 
-            //Assert
-            Assert.IsTrue(tags.Count == 1);
-            Assert.IsTrue(documentIds.Contains("doc5"));
+            // Assert
+            Assert.AreEqual(1, documentIds.Count);
+            Assert.AreEqual("doc5", documentIds[0]);
         }
 
         [TestMethod]
         public void SingleKeywordMultipleResults()
         {
-            //Arrange
+            // Arrange
             var db = CreateTestDatabase();
             var oxt = new BooleanQueryScheme();
             var (keys, edb) = oxt.Setup(db);
-            var keyword = "apple";
+            var keywords = new List<string> { "apple" };
 
-            //Act
-            var tags = edb.GetTag(keys.IndexKey, keyword);
-            byte[] labelKey = CryptoUtils.Randomize(keys.MasterKey, keyword);
-            var documentIds = DecryptDocIds(labelKey, tags).ToList();
+            // Act
+            var documentIds = oxt.ExecuteQuery(edb, keywords);
 
-            //Assert
-            Assert.IsTrue(tags.Count == 4);
+            // Assert
+            Assert.AreEqual(4, documentIds.Count);
             Assert.IsTrue(documentIds.Contains("doc1"));
             Assert.IsTrue(documentIds.Contains("doc3"));
             Assert.IsTrue(documentIds.Contains("doc4"));
