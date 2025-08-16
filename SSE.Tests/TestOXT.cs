@@ -20,87 +20,70 @@ namespace SSE.Tests
             };
             return new Database<(string, string)>(data, item => item.Item1, item => item.Item2);
         }
-
         [TestMethod]
-        public void OXTSetup_CreatesValidStructures()
+        public void SingleKeywordNoResult()
         {
-            // Arrange
+            //Arrange
             var db = CreateTestDatabase();
             var oxt = new BooleanQueryScheme();
-
-            // Act
             var (keys, edb) = oxt.Setup(db);
+            var keyword = "orange";
 
-            // Assert
-            Assert.IsNotNull(keys);
-            Assert.IsNotNull(keys.MasterKey);
-            Assert.IsNotNull(keys.CrossTagKey);
-            Assert.IsNotNull(keys.IdentifierKey);
-            Assert.IsNotNull(keys.TagKey);
-            Assert.IsNotNull(keys.IndexKey);
-            Assert.IsNotNull(edb);
+            //Act
+            var tags = edb.GetTag(keys.IndexKey, keyword);
+
+            //Assert
+            Assert.IsTrue(tags.Count == 0);
         }
 
         [TestMethod]
-        public void GetTag_RetrievesCorrectTokens_ForExistingKeyword()
+        public void SingleKeywordOneResult()
         {
-            // Arrange
+            //Arrange
             var db = CreateTestDatabase();
             var oxt = new BooleanQueryScheme();
             var (keys, edb) = oxt.Setup(db);
-            string testKeyword = "apple";
+            var keyword = "grape";
 
-            // Act
-            var tokens = edb.GetTag(keys.IndexKey, testKeyword);
+            //Act
+            var tags = edb.GetTag(keys.IndexKey, keyword);
+            byte[] labelKey = CryptoUtils.Randomize(keys.MasterKey, keyword);
+            var documentIds = DecryptDocIds(labelKey, tags).ToList();
 
-            // Assert
-            Assert.IsNotNull(tokens);
-            Assert.IsTrue(tokens.Count > 0);
+            //Assert
+            Assert.IsTrue(tags.Count == 1);
+            Assert.IsTrue(documentIds.Contains("doc5"));
         }
 
         [TestMethod]
-        public void GetTag_ReturnsEmptyList_ForNonexistentKeyword()
+        public void SingleKeywordMultipleResults()
         {
-            // Arrange
+            //Arrange
             var db = CreateTestDatabase();
             var oxt = new BooleanQueryScheme();
             var (keys, edb) = oxt.Setup(db);
-            string nonexistentKeyword = "nonexistent";
+            var keyword = "apple";
 
-            // Act
-            var tokens = edb.GetTag(keys.IndexKey, nonexistentKeyword);
+            //Act
+            var tags = edb.GetTag(keys.IndexKey, keyword);
+            byte[] labelKey = CryptoUtils.Randomize(keys.MasterKey, keyword);
+            var documentIds = DecryptDocIds(labelKey, tags).ToList();
 
-            // Assert
-            Assert.IsNotNull(tokens);
-            Assert.AreEqual(0, tokens.Count);
-        }
-
-        [TestMethod]
-        public void TokenDecryption_YieldsCorrectDocuments()
-        {
-            // Arrange
-            var db = CreateTestDatabase();
-            var oxt = new BooleanQueryScheme();
-            var (keys, edb) = oxt.Setup(db);
-            string testKeyword = "apple";
-
-            // Act
-            var tokens = edb.GetTag(keys.IndexKey, testKeyword);
-            var documentIds = new List<string>();
-
-            byte[] labelKey = CryptoUtils.Randomize(keys.MasterKey, testKeyword);
-            foreach (var (encrypted, _) in tokens)
-            {
-                string docId = CryptoUtils.Decrypt(labelKey, encrypted);
-                documentIds.Add(docId);
-            }
-
-            // Assert
+            //Assert
+            Assert.IsTrue(tags.Count == 4);
             Assert.IsTrue(documentIds.Contains("doc1"));
             Assert.IsTrue(documentIds.Contains("doc3"));
             Assert.IsTrue(documentIds.Contains("doc4"));
             Assert.IsTrue(documentIds.Contains("doc5"));
-            Assert.IsFalse(documentIds.Contains("doc2"));
+        }
+
+        private static IEnumerable<string> DecryptDocIds(byte[] labelKey, IEnumerable<(byte[] encrypted, byte[] inverseCrossIdentifier)> tokens)
+        {
+            foreach (var (encrypted, _) in tokens)
+            {
+                string docId = CryptoUtils.Decrypt(labelKey, encrypted);
+                yield return docId;
+            }
         }
 
         [TestMethod]
@@ -155,6 +138,109 @@ namespace SSE.Tests
 
             // Assert
             Assert.IsFalse(result);
+        }
+
+        [TestMethod]
+        public void TwoKeywordsMultipleResults()
+        {
+            // Arrange
+            var db = CreateTestDatabase();
+            var oxt = new BooleanQueryScheme();
+            var (keys, edb) = oxt.Setup(db);
+            var keywords = new List<string> { "apple", "banana" }; // First is s-term
+
+            // Also test the convenience method
+            var documentIds = oxt.ExecuteQuery(edb, keywords);
+
+            // Assert
+            Assert.AreEqual(3, documentIds.Count);
+            CollectionAssert.Contains(documentIds, "doc1");
+            CollectionAssert.Contains(documentIds, "doc4");
+            CollectionAssert.Contains(documentIds, "doc5");
+        }
+
+        [TestMethod]
+        public void TwoKeywordsSingleResult()
+        {
+            // Arrange
+            var db = CreateTestDatabase();
+            var oxt = new BooleanQueryScheme();
+            var (keys, edb) = oxt.Setup(db);
+            var keywords = new List<string> { "apple", "fig" };
+
+            // Act
+            var results = oxt.ExecuteQuery(edb, keywords);
+
+            // Assert
+            Assert.AreEqual(1, results.Count);
+            Assert.AreEqual("doc4", results[0]);
+        }
+
+        [TestMethod]
+        public void TwoKeyworsNoResult()
+        {
+            // Arrange
+            var db = CreateTestDatabase();
+            var oxt = new BooleanQueryScheme();
+            var (keys, edb) = oxt.Setup(db);
+            var keywords = new List<string> { "apple", "date" };
+
+            // Act
+            var results = oxt.ExecuteQuery(edb, keywords);
+
+            // Assert
+            Assert.AreEqual(0, results.Count);
+        }
+
+        [TestMethod]
+        public void ThreeKeywordsSingleResult()
+        {
+            // Arrange
+            var db = CreateTestDatabase();
+            var oxt = new BooleanQueryScheme();
+            var (keys, edb) = oxt.Setup(db);
+            var keywords = new List<string> { "apple", "banana", "cherry" };
+
+            // Act
+            var documentIds = oxt.ExecuteQuery(edb, keywords);
+
+            // Assert - only doc1 contains all three terms
+            Assert.AreEqual(1, documentIds.Count);
+            Assert.AreEqual("doc1", documentIds[0]);
+        }
+
+        [TestMethod]
+        public void OptimizedSearchBehaviour()
+        {
+            // Arrange
+            var db = CreateTestDatabase();
+            var oxt = new BooleanQueryScheme();
+            var (keys, edb) = oxt.Setup(db);
+
+            // Keyword order matters! 'fig' is more selective than 'apple'
+            var moreEfficientOrder = new List<string> { "fig", "apple" };
+            var lessEfficientOrder = new List<string> { "apple", "fig" };
+
+            // Act
+            // This will generate fewer stag lookups since 'fig' has fewer documents
+            var (stagEff, _) = oxt.GenerateSearchTokens(moreEfficientOrder);
+            var tuplesEff = edb.Retrieve(stagEff);
+
+            // This generates more lookups since 'apple' appears in more documents
+            var (stagLess, _) = oxt.GenerateSearchTokens(lessEfficientOrder);
+            var tuplesLess = edb.Retrieve(stagLess);
+
+            // Assert
+            // The result should be the same document, but the efficient query requires fewer operations
+            Assert.IsTrue(tuplesEff.Count < tuplesLess.Count);
+
+            var resultsEff = oxt.ExecuteQuery(edb, moreEfficientOrder);
+            var resultsLess = oxt.ExecuteQuery(edb, lessEfficientOrder);
+
+            // Both should return the same document
+            CollectionAssert.AreEquivalent(resultsEff, resultsLess);
+            Assert.AreEqual(1, resultsEff.Count);
+            Assert.AreEqual("doc4", resultsEff[0]);
         }
     }
 }
