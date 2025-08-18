@@ -26,7 +26,7 @@ namespace SSE.Server
                 var (e, y) = tuples[c];
 
                 // xtokens are indexed by c on the client
-                if (!msg.XTokens.TryGetValue(c, out var xtokens) || xtokens.Count == 0)
+                if (!msg.ConjunctiveTokenSets.TryGetValue(c, out var xtokens) || xtokens.Count == 0)
                 {
                     // Single-keyword (or missing tokens) -> accept directly
                     yield return e;

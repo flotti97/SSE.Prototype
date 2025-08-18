@@ -12,8 +12,8 @@ namespace SSE.Client.Schemes
     {
         private KeyCollection keys = new();
 
-        private static readonly BigInteger P = CryptoUtils.Prime256Bit;
-        private static readonly BigInteger Pm1 = CryptoUtils.Prime256Bit - 1; // exponent group order
+        private static readonly BigInteger PrimeModulus = CryptoUtils.Prime256Bit;
+        private static readonly BigInteger ExponentGroupOrder = CryptoUtils.Prime256Bit - 1;
 
         public BooleanQueryScheme()
         {
@@ -25,82 +25,94 @@ namespace SSE.Client.Schemes
 
         public (KeyCollection, BooleanEncryptedDatabase) Setup(Database<(string, string)> db)
         {
-            Dictionary<string, List<string>> metadata = db.GetMetadata();
-            List<string> keywords = metadata.Keys.ToList();
+            Dictionary<string, List<string>> keywordToDocumentIds = db.GetMetadata();
+            List<string> keywords = keywordToDocumentIds.Keys.ToList();
 
-            Dictionary<string, List<(byte[], byte[])>> tokenMap = new();
-            HashSet<BigInteger> crossTags = new();
+            Dictionary<string, List<(byte[] EncryptedDocId, byte[] InvertedCounterAppliedIndex)>> keywordPostingLists = new();
+            HashSet<BigInteger> conjunctiveMembershipTagSet = new();
 
             foreach (string keyword in keywords)
             {
-                List<(byte[], byte[])> tokens = new();
-                byte[] labelKey = CryptoUtils.Randomize(keys.DocumentEncryptionKeySeed, keyword);
+                List<(byte[] EncryptedDocId, byte[] InvertedCounterAppliedIndex)> postingList = new();
+                byte[] perKeywordEncryptionKey = CryptoUtils.Randomize(keys.DocumentEncryptionKeySeed, keyword);
 
-                List<string> identifiers = metadata[keyword].OrderBy(_ => Guid.NewGuid()).ToList();
-                int counter = 0;
-                foreach (var identifier in identifiers)
+                List<string> shuffledDocIds = keywordToDocumentIds[keyword]
+                    .OrderBy(_ => Guid.NewGuid())
+                    .ToList();
+
+                int occurenceIndex = 0;
+                foreach (var documentId in shuffledDocIds)
                 {
-                    var crossIdentifier = CryptoUtils.Randomize(keys.DocumentIndexKey, identifier, P);
-                    var crossIdentifierExp = crossIdentifier % Pm1;
-                    if (crossIdentifierExp.IsZero) crossIdentifierExp = 1;
+                    var randomizedDocumentIndex = CryptoUtils.Randomize(keys.DocumentIndexKey, documentId, PrimeModulus);
+                    var documentIndexExponent = randomizedDocumentIndex % ExponentGroupOrder;
+                    if (documentIndexExponent.IsZero) documentIndexExponent = 1;
 
-                    var tokenTuple = GenerateTokenTuple(keyword, counter, crossIdentifierExp, labelKey, identifier);
-                    tokens.Add(tokenTuple);
+                    var postingTuple = BuildPostingTuple(keyword, occurenceIndex, documentIndexExponent, perKeywordEncryptionKey, documentId);
+                    postingList.Add(postingTuple);
 
-                    var crossTag = GenerateCrossTag(keyword, crossIdentifierExp);
-                    crossTags.Add(crossTag);
+                    var membershipTag = BuildConjunctiveMembershipTag(keyword, documentIndexExponent);
+                    conjunctiveMembershipTagSet.Add(membershipTag);
 
-                    counter++;
+                    occurenceIndex++;
                 }
 
-                tokenMap.Add(keyword, tokens);
+                keywordPostingLists.Add(keyword, postingList);
             }
 
-            BooleanEncryptedDatabase edb = new(crossTags);
-            keys.SearchTagKey = edb.Setup(tokenMap);
-            return (keys, edb);
+            BooleanEncryptedDatabase encryptedDatabase = new(conjunctiveMembershipTagSet);
+            keys.SearchTagKey = encryptedDatabase.Setup(keywordPostingLists);
+            return (keys, encryptedDatabase);
         }
 
-        private static BigInteger DeriveZ(byte[] tagKey, string keyword, int counter)
+        /// <summary>
+        /// Derives the per-(keyword, occurrenceIndex) counter factor z in exponent domain ensuring invertibility mod (p-1).
+        /// </summary>
+        private static BigInteger DeriveKeywordOccurrenceFactor(byte[] keywordCounterKey, string keyword, int occurenceIndex)
         {
             // Deterministic base value
-            var raw = CryptoUtils.DeriveKey(tagKey, keyword, counter);
-            var z = new BigInteger(raw, isBigEndian: true, isUnsigned: true) % Pm1;
-            if (z <= 1) z = 2;
+            var raw = CryptoUtils.DeriveKey(keywordCounterKey, keyword, occurenceIndex);
+            var factor = new BigInteger(raw, isBigEndian: true, isUnsigned: true) % ExponentGroupOrder;
+            if (factor <= 1) factor = 2;
 
             // Ensure gcd(z, p-1) == 1 (so inverse exists)
-            while (BigInteger.GreatestCommonDivisor(z, Pm1) != 1)
+            while (BigInteger.GreatestCommonDivisor(factor, ExponentGroupOrder) != 1)
             {
-                z++;
-                if (z >= Pm1) z = 2;
+                factor++;
+                if (factor >= ExponentGroupOrder) factor = 2;
             }
-            return z;
+            return factor;
         }
 
-        private (byte[] encryptedIdentifier, byte[] inverseCrossIdentifier) GenerateTokenTuple(string keyword, int counter, BigInteger crossIdentifierExp, byte[] labelKey, string identifier)
+        /// <summary>
+        /// Builds a posting list tuple (Enc(documentId), y) where y = (documentIndexExponent * z^{-1}) mod (p-1).
+        /// </summary>
+        private (byte[] EncryptedDocId, byte[] InvertedCounterAppliedIndex) BuildPostingTuple(string keyword, int counter, BigInteger crossIdentifierExp, byte[] labelKey, string identifier)
         {
-            var zVal = DeriveZ(keys.KeywordCounterKey, keyword, counter);
-            var zValBytes = zVal.ToByteArray(isUnsigned: true, isBigEndian: true);
-            var zInverse = CryptoUtils.ModInverse(zValBytes, Pm1);
+            var occurenceFactor = DeriveKeywordOccurrenceFactor(keys.KeywordCounterKey, keyword, counter);
+            var occurenceFactorBytes = occurenceFactor.ToByteArray(isUnsigned: true, isBigEndian: true);
+            var occurenceFactorInverse = CryptoUtils.ModInverse(occurenceFactorBytes, ExponentGroupOrder);
 
-            var yBig = CryptoUtils.ModMultiply(crossIdentifierExp, zInverse, Pm1);
-            var y = yBig.ToByteArray(isUnsigned: true, isBigEndian: true);
+            var yValue = CryptoUtils.ModMultiply(crossIdentifierExp, occurenceFactorInverse, ExponentGroupOrder);
+            var yBytes = yValue.ToByteArray(isUnsigned: true, isBigEndian: true);
 
-            var e = CryptoUtils.Encrypt(labelKey, identifier);
-            return (e, y);
+            var encryptedDocId = CryptoUtils.Encrypt(labelKey, identifier);
+            return (encryptedDocId, yBytes);
         }
 
-        private BigInteger GenerateCrossTag(string keyword, BigInteger crossIdentifierExp)
+        /// <summary>
+        /// Builds a conjunctive membership tag g^{ (keywordTag * documentIndexExponent) } mod p stored in XSet.
+        /// </summary>
+        private BigInteger BuildConjunctiveMembershipTag(string keyword, BigInteger crossIdentifierExp)
         {
-            var crossTagRandomizer = CryptoUtils.Randomize(keys.KeywordTagKey, keyword);
-            var randomizerValue = new BigInteger(crossTagRandomizer, isBigEndian: true, isUnsigned: true) % Pm1;
-            if (randomizerValue.IsZero) randomizerValue = 1;
+            var obscuredKeywordBytes = CryptoUtils.Randomize(keys.KeywordTagKey, keyword);
+            var obscuredKeyword = new BigInteger(obscuredKeywordBytes, isBigEndian: true, isUnsigned: true) % ExponentGroupOrder;
+            if (obscuredKeyword.IsZero) obscuredKeyword = 1;
 
-            var exponent = CryptoUtils.ModMultiply(randomizerValue, crossIdentifierExp, Pm1);
+            var exponent = CryptoUtils.ModMultiply(obscuredKeyword, crossIdentifierExp, ExponentGroupOrder);
             return BigInteger.ModPow(
-                CryptoUtils.Generator(P),
+                CryptoUtils.Generator(PrimeModulus),
                 exponent,
-                P
+                PrimeModulus
             );
         }
 
@@ -108,68 +120,91 @@ namespace SSE.Client.Schemes
         {
             QueryMessage query = GenerateQuery(keywords);
             var encryptedResults = server.ProcessQuery(query);
-            return encryptedResults.Select(x => GetInd(keywords, x));
+            return encryptedResults.Select(x => DecryptDocumentIdentifier(keywords, x));
         }
 
-        private string GetInd(string[] keywords, byte[] e)
+        private string DecryptDocumentIdentifier(string[] keywords, byte[] encryptedDocId)
         {
-            var eKey = new EncryptedValue(keywords[0], keys.DocumentEncryptionKeySeed);
-            return CryptoUtils.Decrypt(eKey.Value, e);
+            var keyWrapper = new EncryptedValue(keywords[0], keys.DocumentEncryptionKeySeed);
+            return CryptoUtils.Decrypt(keyWrapper.Value, encryptedDocId);
         }
 
-        private byte[] ComputeTheThing(string firstKeyword, string currentKeyword, int counter)
+        /// <summary>
+        /// Derives a conjunctive test token xtoken = g^{ occurrenceFactor * keywordTag } mod p
+        /// used to test membership with y-values and XSet elements.
+        /// </summary>
+        private byte[] DeriveConjunctiveTestToken(string pivotKeyword, string secondaryKeyword, int occurenceIndex)
         {
-            var zVal = DeriveZ(keys.KeywordCounterKey, firstKeyword, counter);
+            var occurenceFactor = DeriveKeywordOccurrenceFactor(keys.KeywordCounterKey, pivotKeyword, occurenceIndex);
 
-            var kxBytes = CryptoUtils.Randomize(keys.KeywordTagKey, currentKeyword);
-            var kx = new BigInteger(kxBytes, isBigEndian: true, isUnsigned: true) % Pm1;
-            if (kx.IsZero) kx = 1;
+            var keywordTagBytes = CryptoUtils.Randomize(keys.KeywordTagKey, secondaryKeyword);
+            var keywordTag = new BigInteger(keywordTagBytes, isBigEndian: true, isUnsigned: true) % ExponentGroupOrder;
+            if (keywordTag.IsZero) keywordTag = 1;
 
-            var exponent = CryptoUtils.ModMultiply(zVal, kx, Pm1);
+            var exponent = CryptoUtils.ModMultiply(occurenceFactor, keywordTag, ExponentGroupOrder);
 
-            var xtoken = BigInteger.ModPow(
-                CryptoUtils.Generator(P),
+            var testToken = BigInteger.ModPow(
+                CryptoUtils.Generator(PrimeModulus),
                 exponent,
-                P
+                PrimeModulus
             );
 
-            return xtoken.ToByteArray(isUnsigned: true, isBigEndian: true);
+            return testToken.ToByteArray(isUnsigned: true, isBigEndian: true);
         }
 
+        /// <summary>
+        /// Generates the query message:
+        /// Stag = PRF(K_T, pivotKeyword) and a sequence of conjunctive test token sets for each occurrence index.
+        /// </summary>
         public QueryMessage GenerateQuery(string[] keywords)
         {
-            var w1 = keywords[0];
-            var stag = new EncryptedValue(w1, keys.SearchTagKey).Value;
-            var msg = new QueryMessage { Stag = stag };
+            var pivotKeyword = keywords[0];
+            var searchTag = new EncryptedValue(pivotKeyword, keys.SearchTagKey).Value;
+            var query = new QueryMessage { Stag = searchTag };
 
-            int c = 0;
+            int occurenceIndex = 0;
             int limit = 2048;
 
-            while (c < limit)
+            while (occurenceIndex < limit)
             {
-                var xtokensForC = new List<byte[]>();
+                var testTokenSet = new List<byte[]>();
                 for (int i = 1; i < keywords.Length; i++)
                 {
-                    var xtoken = ComputeTheThing(keywords[0], keywords[i], c);
-                    xtokensForC.Add(xtoken);
+                    var testToken = DeriveConjunctiveTestToken(keywords[0], keywords[i], occurenceIndex);
+                    testTokenSet.Add(testToken);
                 }
-                msg.XTokens[c] = xtokensForC;
+                query.ConjunctiveTokenSets[occurenceIndex] = testTokenSet;
 
                 if (keywords.Length == 1) break;
-                c++;
+                occurenceIndex++;
             }
 
-            return msg;
+            return query;
         }
     }
 
     public record struct KeyCollection()
     {
         private const int KEY_SIZE = 32;
+        /// <summary>
+        /// <code>K_S</code> Key used to derive encryption keys for documents from keywords.
+        /// </summary>
         public byte[] DocumentEncryptionKeySeed { get; set; } = new byte[KEY_SIZE];
+        /// <summary>
+        /// <code>K_X</code> Key used for the conjunctive tag set construction.
+        /// </summary>
         public byte[] KeywordTagKey { get; set; } = new byte[KEY_SIZE];
+        /// <summary>
+        /// <code>K_I</code> Key used to obscure document identifiers.
+        /// </summary>
         public byte[] DocumentIndexKey { get; set; } = new byte[KEY_SIZE];
+        /// <summary>
+        /// <code>K_Z</code> Key used to obscure keywords in combination with an integer value.
+        /// </summary>
         public byte[] KeywordCounterKey { get; set; } = new byte[KEY_SIZE];
+        /// <summary>
+        /// <code>K_T</code> Key used to derive search tags.
+        /// </summary>
         public byte[] SearchTagKey { get; set; } = new byte[KEY_SIZE];
     }
 }

@@ -3,6 +3,6 @@
     public class QueryMessage
     {
         public required byte[] Stag { get; set; }
-        public Dictionary<int, List<byte[]>> XTokens { get; set; } = new();
+        public Dictionary<int, List<byte[]>> ConjunctiveTokenSets { get; set; } = new();
     }
 }
