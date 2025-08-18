@@ -17,10 +17,10 @@ namespace SSE.Client.Schemes
 
         public BooleanQueryScheme()
         {
-            keys.MasterKey = CryptoUtils.GenerateRandomKey();
-            keys.CrossTagKey = CryptoUtils.GenerateRandomKey();
-            keys.IdentifierKey = CryptoUtils.GenerateRandomKey();
-            keys.TagKey = CryptoUtils.GenerateRandomKey();
+            keys.DocumentEncryptionKeySeed = CryptoUtils.GenerateRandomKey();
+            keys.KeywordTagKey = CryptoUtils.GenerateRandomKey();
+            keys.DocumentIndexKey = CryptoUtils.GenerateRandomKey();
+            keys.KeywordCounterKey = CryptoUtils.GenerateRandomKey();
         }
 
         public (KeyCollection, BooleanEncryptedDatabase) Setup(Database<(string, string)> db)
@@ -34,13 +34,13 @@ namespace SSE.Client.Schemes
             foreach (string keyword in keywords)
             {
                 List<(byte[], byte[])> tokens = new();
-                byte[] labelKey = CryptoUtils.Randomize(keys.MasterKey, keyword);
+                byte[] labelKey = CryptoUtils.Randomize(keys.DocumentEncryptionKeySeed, keyword);
 
                 List<string> identifiers = metadata[keyword].OrderBy(_ => Guid.NewGuid()).ToList();
                 int counter = 0;
                 foreach (var identifier in identifiers)
                 {
-                    var crossIdentifier = CryptoUtils.Randomize(keys.IdentifierKey, identifier, P);
+                    var crossIdentifier = CryptoUtils.Randomize(keys.DocumentIndexKey, identifier, P);
                     var crossIdentifierExp = crossIdentifier % Pm1;
                     if (crossIdentifierExp.IsZero) crossIdentifierExp = 1;
 
@@ -57,7 +57,7 @@ namespace SSE.Client.Schemes
             }
 
             BooleanEncryptedDatabase edb = new(crossTags);
-            keys.IndexKey = edb.Setup(tokenMap);
+            keys.SearchTagKey = edb.Setup(tokenMap);
             return (keys, edb);
         }
 
@@ -79,7 +79,7 @@ namespace SSE.Client.Schemes
 
         private (byte[] encryptedIdentifier, byte[] inverseCrossIdentifier) GenerateTokenTuple(string keyword, int counter, BigInteger crossIdentifierExp, byte[] labelKey, string identifier)
         {
-            var zVal = DeriveZ(keys.TagKey, keyword, counter);
+            var zVal = DeriveZ(keys.KeywordCounterKey, keyword, counter);
             var zValBytes = zVal.ToByteArray(isUnsigned: true, isBigEndian: true);
             var zInverse = CryptoUtils.ModInverse(zValBytes, Pm1);
 
@@ -92,7 +92,7 @@ namespace SSE.Client.Schemes
 
         private BigInteger GenerateCrossTag(string keyword, BigInteger crossIdentifierExp)
         {
-            var crossTagRandomizer = CryptoUtils.Randomize(keys.CrossTagKey, keyword);
+            var crossTagRandomizer = CryptoUtils.Randomize(keys.KeywordTagKey, keyword);
             var randomizerValue = new BigInteger(crossTagRandomizer, isBigEndian: true, isUnsigned: true) % Pm1;
             if (randomizerValue.IsZero) randomizerValue = 1;
 
@@ -113,15 +113,15 @@ namespace SSE.Client.Schemes
 
         private string GetInd(string[] keywords, byte[] e)
         {
-            var eKey = new EncryptedValue(keywords[0], keys.MasterKey);
+            var eKey = new EncryptedValue(keywords[0], keys.DocumentEncryptionKeySeed);
             return CryptoUtils.Decrypt(eKey.Value, e);
         }
 
         private byte[] ComputeTheThing(string firstKeyword, string currentKeyword, int counter)
         {
-            var zVal = DeriveZ(keys.TagKey, firstKeyword, counter);
+            var zVal = DeriveZ(keys.KeywordCounterKey, firstKeyword, counter);
 
-            var kxBytes = CryptoUtils.Randomize(keys.CrossTagKey, currentKeyword);
+            var kxBytes = CryptoUtils.Randomize(keys.KeywordTagKey, currentKeyword);
             var kx = new BigInteger(kxBytes, isBigEndian: true, isUnsigned: true) % Pm1;
             if (kx.IsZero) kx = 1;
 
@@ -139,7 +139,7 @@ namespace SSE.Client.Schemes
         public QueryMessage GenerateQuery(string[] keywords)
         {
             var w1 = keywords[0];
-            var stag = new EncryptedValue(w1, keys.IndexKey).Value;
+            var stag = new EncryptedValue(w1, keys.SearchTagKey).Value;
             var msg = new QueryMessage { Stag = stag };
 
             int c = 0;
@@ -166,10 +166,10 @@ namespace SSE.Client.Schemes
     public record struct KeyCollection()
     {
         private const int KEY_SIZE = 32;
-        public byte[] MasterKey { get; set; } = new byte[KEY_SIZE];
-        public byte[] CrossTagKey { get; set; } = new byte[KEY_SIZE];
-        public byte[] IdentifierKey { get; set; } = new byte[KEY_SIZE];
-        public byte[] TagKey { get; set; } = new byte[KEY_SIZE];
-        public byte[] IndexKey { get; set; } = new byte[KEY_SIZE];
+        public byte[] DocumentEncryptionKeySeed { get; set; } = new byte[KEY_SIZE];
+        public byte[] KeywordTagKey { get; set; } = new byte[KEY_SIZE];
+        public byte[] DocumentIndexKey { get; set; } = new byte[KEY_SIZE];
+        public byte[] KeywordCounterKey { get; set; } = new byte[KEY_SIZE];
+        public byte[] SearchTagKey { get; set; } = new byte[KEY_SIZE];
     }
 }

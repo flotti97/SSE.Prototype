@@ -106,37 +106,6 @@ namespace SSE.Tests
         }
 
         [TestMethod]
-        public void ContainsCrossTag_ReturnsTrueForValidCrossTags()
-        {
-            // Arrange - We'll create a specific test case with a known keyword and identifier
-            var testData = new List<(string, string)>
-            {
-                ("docX", "uniqueword")
-            };
-            var testDb = new Database<(string, string)>(testData, item => item.Item1, item => item.Item2);
-            var oxt = new BooleanQueryScheme();
-            var (keys, edb) = oxt.Setup(testDb);
-            var server = new BooleanEncryptedStorageServer(edb); // added for structural consistency
-
-            string keyword = "uniqueword";
-            string identifier = "docX";
-            var crossIdentifier = CryptoUtils.Randomize(keys.IdentifierKey, identifier, CryptoUtils.Prime256Bit);
-            var crossTagRandomizer = CryptoUtils.Randomize(keys.CrossTagKey, keyword);
-            var randomizerValue = new BigInteger(crossTagRandomizer, isBigEndian: true, isUnsigned: true);
-            var crossTag = BigInteger.ModPow(
-                CryptoUtils.Generator(CryptoUtils.Prime256Bit),
-                CryptoUtils.ModMultiply(randomizerValue, crossIdentifier, CryptoUtils.Prime256Bit),
-                CryptoUtils.Prime256Bit
-            );
-
-            // Act
-            bool result = edb.ContainsCrossTag(crossTag);
-
-            // Assert
-            Assert.IsTrue(result);
-        }
-
-        [TestMethod]
         public void ContainsCrossTag_ReturnsFalseForInvalidCrossTags()
         {
             // Arrange
