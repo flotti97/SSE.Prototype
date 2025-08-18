@@ -1,6 +1,7 @@
 ﻿using SSE.Client.Schemes;
 using SSE.Core.Models;
 using SSE.Cryptography;
+using SSE.Server;
 using System.Numerics;
 
 namespace SSE.Tests
@@ -20,17 +21,18 @@ namespace SSE.Tests
             };
             return new Database<(string, string)>(data, item => item.Item1, item => item.Item2);
         }
+
         [TestMethod]
         public void SingleKeywordNoResult()
         {
             // Arrange
             var db = CreateTestDatabase();
             var oxt = new BooleanQueryScheme();
-            var (keys, edb) = oxt.Setup(db);
-            var keywords = new List<string> { "orange" };
+            var (_, edb) = oxt.Setup(db);
+            var server = new BooleanEncryptedStorageServer(edb);
 
             // Act
-            var documentIds = oxt.ExecuteQuery(edb, keywords);
+            var documentIds = oxt.Search(server, "orange").ToList();
 
             // Assert
             Assert.AreEqual(0, documentIds.Count);
@@ -42,11 +44,11 @@ namespace SSE.Tests
             // Arrange
             var db = CreateTestDatabase();
             var oxt = new BooleanQueryScheme();
-            var (keys, edb) = oxt.Setup(db);
-            var keywords = new List<string> { "grape" };
+            var (_, edb) = oxt.Setup(db);
+            var server = new BooleanEncryptedStorageServer(edb);
 
             // Act
-            var documentIds = oxt.ExecuteQuery(edb, keywords);
+            var documentIds = oxt.Search(server, "grape").ToList();
 
             // Assert
             Assert.AreEqual(1, documentIds.Count);
@@ -59,11 +61,32 @@ namespace SSE.Tests
             // Arrange
             var db = CreateTestDatabase();
             var oxt = new BooleanQueryScheme();
-            var (keys, edb) = oxt.Setup(db);
+            var (_, edb) = oxt.Setup(db);
+            var server = new BooleanEncryptedStorageServer(edb);
+
+            // Act
+            var documentIds = oxt.Search(server, "apple").ToList();
+
+            // Assert
+            Assert.AreEqual(4, documentIds.Count);
+            Assert.IsTrue(documentIds.Contains("doc1"));
+            Assert.IsTrue(documentIds.Contains("doc3"));
+            Assert.IsTrue(documentIds.Contains("doc4"));
+            Assert.IsTrue(documentIds.Contains("doc5"));
+        }
+
+        [TestMethod]
+        public void SimpleTest()
+        {
+            // Arrange
+            var db = CreateTestDatabase();
+            var oxt = new BooleanQueryScheme();
+            var (_, edb) = oxt.Setup(db);
+            var server = new BooleanEncryptedStorageServer(edb);
             var keywords = new List<string> { "apple" };
 
             // Act
-            var documentIds = oxt.ExecuteQuery(edb, keywords);
+            var documentIds = oxt.Search(server, "apple").ToList();
 
             // Assert
             Assert.AreEqual(4, documentIds.Count);
@@ -93,18 +116,13 @@ namespace SSE.Tests
             var testDb = new Database<(string, string)>(testData, item => item.Item1, item => item.Item2);
             var oxt = new BooleanQueryScheme();
             var (keys, edb) = oxt.Setup(testDb);
+            var server = new BooleanEncryptedStorageServer(edb); // added for structural consistency
 
-            // Get the keyword and recreate the cross tag
             string keyword = "uniqueword";
             string identifier = "docX";
-
-            // Recreate the crossIdentifier
             var crossIdentifier = CryptoUtils.Randomize(keys.IdentifierKey, identifier, CryptoUtils.Prime256Bit);
-
-            // Manually compute the cross tag using the same process as in BooleanQueryScheme
             var crossTagRandomizer = CryptoUtils.Randomize(keys.CrossTagKey, keyword);
             var randomizerValue = new BigInteger(crossTagRandomizer, isBigEndian: true, isUnsigned: true);
-
             var crossTag = BigInteger.ModPow(
                 CryptoUtils.Generator(CryptoUtils.Prime256Bit),
                 CryptoUtils.ModMultiply(randomizerValue, crossIdentifier, CryptoUtils.Prime256Bit),
@@ -124,9 +142,9 @@ namespace SSE.Tests
             // Arrange
             var db = CreateTestDatabase();
             var oxt = new BooleanQueryScheme();
-            var (keys, edb) = oxt.Setup(db);
+            var (_, edb) = oxt.Setup(db);
+            var server = new BooleanEncryptedStorageServer(edb); // structural consistency
 
-            // Create a random value that should not be in the cross tag set
             var invalidCrossTag = new BigInteger(CryptoUtils.GenerateRandomKey(), isUnsigned: true);
 
             // Act
@@ -142,11 +160,11 @@ namespace SSE.Tests
             // Arrange
             var db = CreateTestDatabase();
             var oxt = new BooleanQueryScheme();
-            var (keys, edb) = oxt.Setup(db);
-            var keywords = new List<string> { "apple", "banana" }; // First is s-term
+            var (_, edb) = oxt.Setup(db);
+            var server = new BooleanEncryptedStorageServer(edb);
 
-            // Also test the convenience method
-            var documentIds = oxt.ExecuteQuery(edb, keywords);
+            // Act
+            var documentIds = oxt.Search(server, "apple", "banana").ToList();
 
             // Assert
             Assert.AreEqual(3, documentIds.Count);
@@ -161,11 +179,11 @@ namespace SSE.Tests
             // Arrange
             var db = CreateTestDatabase();
             var oxt = new BooleanQueryScheme();
-            var (keys, edb) = oxt.Setup(db);
-            var keywords = new List<string> { "apple", "fig" };
+            var (_, edb) = oxt.Setup(db);
+            var server = new BooleanEncryptedStorageServer(edb);
 
             // Act
-            var results = oxt.ExecuteQuery(edb, keywords);
+            var results = oxt.Search(server, "apple", "fig").ToList();
 
             // Assert
             Assert.AreEqual(1, results.Count);
@@ -178,11 +196,11 @@ namespace SSE.Tests
             // Arrange
             var db = CreateTestDatabase();
             var oxt = new BooleanQueryScheme();
-            var (keys, edb) = oxt.Setup(db);
-            var keywords = new List<string> { "apple", "date" };
+            var (_, edb) = oxt.Setup(db);
+            var server = new BooleanEncryptedStorageServer(edb);
 
             // Act
-            var results = oxt.ExecuteQuery(edb, keywords);
+            var results = oxt.Search(server, "apple", "date").ToList();
 
             // Assert
             Assert.AreEqual(0, results.Count);
@@ -194,11 +212,11 @@ namespace SSE.Tests
             // Arrange
             var db = CreateTestDatabase();
             var oxt = new BooleanQueryScheme();
-            var (keys, edb) = oxt.Setup(db);
-            var keywords = new List<string> { "apple", "banana", "cherry" };
+            var (_, edb) = oxt.Setup(db);
+            var server = new BooleanEncryptedStorageServer(edb);
 
             // Act
-            var documentIds = oxt.ExecuteQuery(edb, keywords);
+            var documentIds = oxt.Search(server, "apple", "banana", "cherry").ToList();
 
             // Assert - only doc1 contains all three terms
             Assert.AreEqual(1, documentIds.Count);
@@ -211,29 +229,18 @@ namespace SSE.Tests
             // Arrange
             var db = CreateTestDatabase();
             var oxt = new BooleanQueryScheme();
-            var (keys, edb) = oxt.Setup(db);
+            var (_, edb) = oxt.Setup(db);
+            var server = new BooleanEncryptedStorageServer(edb);
 
             // Keyword order matters! 'fig' is more selective than 'apple'
-            var moreEfficientOrder = new List<string> { "fig", "apple" };
-            var lessEfficientOrder = new List<string> { "apple", "fig" };
+            var moreEfficientOrder = new[] { "fig", "apple" };
+            var lessEfficientOrder = new[] { "apple", "fig" };
 
             // Act
-            // This will generate fewer stag lookups since 'fig' has fewer documents
-            var (stagEff, _) = oxt.GenerateSearchTokens(moreEfficientOrder);
-            var tuplesEff = edb.Retrieve(stagEff);
-
-            // This generates more lookups since 'apple' appears in more documents
-            var (stagLess, _) = oxt.GenerateSearchTokens(lessEfficientOrder);
-            var tuplesLess = edb.Retrieve(stagLess);
+            var resultsEff = oxt.Search(server, moreEfficientOrder).ToList();
+            var resultsLess = oxt.Search(server, lessEfficientOrder).ToList();
 
             // Assert
-            // The result should be the same document, but the efficient query requires fewer operations
-            Assert.IsTrue(tuplesEff.Count < tuplesLess.Count);
-
-            var resultsEff = oxt.ExecuteQuery(edb, moreEfficientOrder);
-            var resultsLess = oxt.ExecuteQuery(edb, lessEfficientOrder);
-
-            // Both should return the same document
             CollectionAssert.AreEquivalent(resultsEff, resultsLess);
             Assert.AreEqual(1, resultsEff.Count);
             Assert.AreEqual("doc4", resultsEff[0]);

@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\SSE.Core\SSE.Core.csproj" />
     <ProjectReference Include="..\SSE.Cryptography\SSE.Cryptography.csproj" />
+    <ProjectReference Include="..\SSE.Server\SSE.Server.csproj" />
   </ItemGroup>
 
   <ItemGroup>

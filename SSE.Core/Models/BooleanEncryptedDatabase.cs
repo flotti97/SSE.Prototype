@@ -48,6 +48,11 @@ namespace SSE.Core.Models
             return new List<(byte[], byte[])>();
         }
 
+        public bool ElementOfCrossSet(BigInteger value)
+        {
+            return crossSet.Contains(value);
+        }
+
 
 
         public bool ContainsCrossTag(BigInteger crossTag)
