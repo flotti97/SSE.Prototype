@@ -10,43 +10,47 @@ namespace SSE.Server
     /// </summary>
     public class BooleanEncryptedStorageServer
     {
-        internal readonly BooleanEncryptedDatabase edb;
+        internal readonly BooleanEncryptedDatabase encryptedDatabase;
 
-        public BooleanEncryptedStorageServer(BooleanEncryptedDatabase edb)
+        public BooleanEncryptedStorageServer(BooleanEncryptedDatabase encryptedDatabase)
         {
-            this.edb = edb;
+            this.encryptedDatabase = encryptedDatabase;
         }
 
-        public IEnumerable<byte[]> ProcessQuery(QueryMessage msg)
+        public IEnumerable<byte[]> ProcessQuery(QueryMessage query)
         {
-            var tuples = edb.Retrieve(Convert.ToBase64String(msg.Stag));
+            var postingList = encryptedDatabase.RetrievePostingList(Convert.ToBase64String(query.Stag));
 
-            for (int c = 0; c < tuples.Count; c++)
+            for (int occurenceIndex = 0; occurenceIndex < postingList.Count; occurenceIndex++)
             {
-                var (e, y) = tuples[c];
+                var (encryptedDocumentId, CounterAdjustedIndexFactorY) = postingList[occurenceIndex];
 
                 // xtokens are indexed by c on the client
-                if (!msg.ConjunctiveTokenSets.TryGetValue(c, out var xtokens) || xtokens.Count == 0)
+                if (!query.ConjunctiveTokenSets.TryGetValue(occurenceIndex, out var testTokens) || testTokens.Count == 0)
                 {
                     // Single-keyword (or missing tokens) -> accept directly
-                    yield return e;
+                    yield return encryptedDocumentId;
                     continue;
                 }
 
-                bool allMatch = true;
-                foreach (var xt in xtokens)
+                bool allSecondaryKeywordsMatch = true;
+                foreach (var testToken in testTokens)
                 {
-                    var testVal = BigInteger.ModPow(xt.AsBigInteger(), y.AsBigInteger(), CryptoUtils.Prime256Bit);
-                    if (!edb.ElementOfCrossSet(testVal))
+                    var testVal = BigInteger.ModPow(
+                        testToken.AsBigInteger(),
+                        CounterAdjustedIndexFactorY.AsBigInteger(),
+                        CryptoUtils.Prime256Bit);
+
+                    if (!encryptedDatabase.ContainsMembershipTag(testVal))
                     {
-                        allMatch = false;
+                        allSecondaryKeywordsMatch = false;
                         break;
                     }
                 }
 
-                if (allMatch)
+                if (allSecondaryKeywordsMatch)
                 {
-                    yield return e;
+                    yield return encryptedDocumentId;
                 }
             }
         }

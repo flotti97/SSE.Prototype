@@ -3,74 +3,68 @@ using System.Numerics;
 
 namespace SSE.Core.Models
 {
+    /// <summary>
+    /// Stores the OXT encrypted index:
+    ///  - TSet: mapping from search tag (stag) -> posting list of (encryptedDocId, yValue)
+    ///  - XSet: set of conjunctive membership tags (g^{ keywordTag * docIndex } mod p)
+    /// </summary>
     public class BooleanEncryptedDatabase
     {
-        private readonly HashSet<BigInteger> crossSet;
-        private Dictionary<string, List<(byte[], byte[])>> secureIndex;
+        private readonly HashSet<BigInteger> membershipTagSet;
+        private Dictionary<string, List<(byte[] encryptedDocumentId, byte[] counterAdjustedIndexFactor)>> searchTagPostingListMap;
 
-        public BooleanEncryptedDatabase(HashSet<BigInteger> crossSet)
+        public BooleanEncryptedDatabase(HashSet<BigInteger> membershipTagSet)
         {
-            this.crossSet = crossSet;
-            this.secureIndex = new Dictionary<string, List<(byte[], byte[])>>();
-        }
-
-        public byte[] Setup(Dictionary<string, List<(byte[], byte[])>> tokenMap)
-        {
-            // Generate index key KT
-            byte[] key = CryptoUtils.GenerateRandomKey();
-
-            // For each keyword, derive a secure token and store its associated tuples
-            foreach (var entry in tokenMap)
-            {
-                string keyword = entry.Key;
-                List<(byte[], byte[])> tuples = entry.Value;
-
-                // Generate secure lookup token using the index key
-                string secureToken = Convert.ToBase64String(
-                    CryptoUtils.Randomize(key, keyword));
-
-                // Store the mapping from secure token to tuples
-                secureIndex.Add(secureToken, tuples);
-            }
-
-            return key;
-        }
-
-        public List<(byte[], byte[])> GetTag(string encryptedKeyword)
-        {
-
-            // Retrieve the tuples associated with this token
-            if (secureIndex.TryGetValue(encryptedKeyword, out var tuples))
-            {
-                return tuples;
-            }
-
-            return new List<(byte[], byte[])>();
-        }
-
-        public bool ElementOfCrossSet(BigInteger value)
-        {
-            return crossSet.Contains(value);
-        }
-
-
-
-        public bool ContainsCrossTag(BigInteger crossTag)
-        {
-            return crossSet.Contains(crossTag);
+            this.membershipTagSet = membershipTagSet;
+            this.searchTagPostingListMap = new();
         }
 
         /// <summary>
-        /// Retrieves tuples associated with a specific search tag
+        /// Initializes the TSet from keyword posting lists.
         /// </summary>
-        /// <param name="stag">The search tag (base64 encoded)</param>
-        /// <returns>List of tuples (encrypted identifier, inverse cross identifier)</returns>
-        public List<(byte[] e, byte[] y)> Retrieve(string stag)
+        /// <returns>
+        /// K_T (SearchTagKey) used client-side to derive stags.
+        /// </returns>
+        public byte[] Setup(Dictionary<string, List<(byte[] encryptedDocumentId, byte[] counterAdjustedIndexFactor)>> keywordPostingLists)
+        {
+            // Generate index key KT
+            byte[] searchTagDerivationKey = CryptoUtils.GenerateRandomKey();
+
+            // For each keyword, derive a secure token and store its associated tuples
+            foreach (var entry in keywordPostingLists)
+            {
+                string keyword = entry.Key;
+                List<(byte[], byte[])> postingList = entry.Value;
+
+                // Generate secure lookup token using the index key
+                string secureToken = Convert.ToBase64String(
+                    CryptoUtils.Randomize(searchTagDerivationKey, keyword));
+
+                // Store the mapping from secure token to tuples
+                searchTagPostingListMap.Add(secureToken, postingList);
+            }
+
+            return searchTagDerivationKey;
+        }
+
+        /// <returns>
+        /// True if a computed test value matches an existing membership tag in XSet.
+        /// </returns>
+        public bool ContainsMembershipTag(BigInteger membershipTagCandidate)
+        {
+            return membershipTagSet.Contains(membershipTagCandidate);
+        }
+
+        /// <summary>
+        /// Retrieve posting list for a given pivot keyword search tag (stag).
+        /// </summary>
+        /// <param name="searchTag">Base64 encoded stag</param>
+        public List<(byte[] encryptedDocumentId, byte[] counterAdjustedIndexFactor)> RetrievePostingList(string searchTag)
         {
             // Lookup tuples using the secure token
-            if (secureIndex.TryGetValue(stag, out var tuples))
+            if (searchTagPostingListMap.TryGetValue(searchTag, out var postingList))
             {
-                return tuples;
+                return postingList;
             }
 
             return new List<(byte[], byte[])>();
