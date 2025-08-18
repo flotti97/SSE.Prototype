@@ -186,24 +186,29 @@ namespace SSE.Client.Schemes
     public record struct KeyCollection()
     {
         private const int KEY_SIZE = 32;
+
         /// <summary>
-        /// <code>K_S</code> Key used to derive encryption keys for documents from keywords.
+        /// K_S: Seed to derive per-keyword document encryption keys.
         /// </summary>
         public byte[] DocumentEncryptionKeySeed { get; set; } = new byte[KEY_SIZE];
+
         /// <summary>
-        /// <code>K_X</code> Key used for the conjunctive tag set construction.
+        /// K_X: Key for deriving per-keyword tag factors used in XSet membership tags.
         /// </summary>
         public byte[] KeywordTagKey { get; set; } = new byte[KEY_SIZE];
+
         /// <summary>
-        /// <code>K_I</code> Key used to obscure document identifiers.
+        /// K_I: Key for randomizing document identifiers into exponent-domain indices.
         /// </summary>
         public byte[] DocumentIndexKey { get; set; } = new byte[KEY_SIZE];
+
         /// <summary>
-        /// <code>K_Z</code> Key used to obscure keywords in combination with an integer value.
+        /// K_Z: Key for deriving per-(keyword, occurrenceIndex) counter factors (invertible mod p-1).
         /// </summary>
         public byte[] KeywordCounterKey { get; set; } = new byte[KEY_SIZE];
+
         /// <summary>
-        /// <code>K_T</code> Key used to derive search tags.
+        /// K_T: Key for deriving search tags (stag) for the pivot keyword.
         /// </summary>
         public byte[] SearchTagKey { get; set; } = new byte[KEY_SIZE];
     }
