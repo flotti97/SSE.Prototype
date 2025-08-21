@@ -36,9 +36,8 @@ namespace SSE.Client.Schemes
                 List<(byte[] EncryptedDocId, byte[] InvertedCounterAppliedIndex)> postingList = new();
                 byte[] perKeywordEncryptionKey = CryptoUtils.Randomize(keys.DocumentEncryptionKeySeed, keyword);
 
-                List<string> shuffledDocIds = keywordToDocumentIds[keyword]
-                    .OrderBy(_ => Guid.NewGuid())
-                    .ToList();
+                List<string> shuffledDocIds = keywordToDocumentIds[keyword];
+                shuffledDocIds.ShuffleInPlace();
 
                 int occurenceIndex = 0;
                 foreach (var documentId in shuffledDocIds)
