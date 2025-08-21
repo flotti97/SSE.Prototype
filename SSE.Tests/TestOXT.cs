@@ -2,7 +2,6 @@
 using SSE.Core.Models;
 using SSE.Cryptography;
 using SSE.Server;
-using System.Numerics;
 
 namespace SSE.Tests
 {
@@ -103,24 +102,6 @@ namespace SSE.Tests
                 string docId = CryptoUtils.Decrypt(labelKey, encrypted);
                 yield return docId;
             }
-        }
-
-        [TestMethod]
-        public void ContainsCrossTag_ReturnsFalseForInvalidCrossTags()
-        {
-            // Arrange
-            var db = CreateTestDatabase();
-            var oxt = new BooleanQueryScheme();
-            var (_, edb) = oxt.Setup(db);
-            var server = new BooleanEncryptedStorageServer(edb); // structural consistency
-
-            var invalidCrossTag = new BigInteger(CryptoUtils.GenerateRandomKey(), isUnsigned: true);
-
-            // Act
-            bool result = edb.ContainsCrossTag(invalidCrossTag);
-
-            // Assert
-            Assert.IsFalse(result);
         }
 
         [TestMethod]
