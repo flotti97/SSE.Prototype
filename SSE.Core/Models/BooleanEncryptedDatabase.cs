@@ -10,6 +10,7 @@ namespace SSE.Core.Models
     /// </summary>
     public class BooleanEncryptedDatabase
     {
+        private static List<(byte[], byte[])> EMPTY_LIST = new();
         private readonly HashSet<BigInteger> membershipTagSet;
         private Dictionary<string, List<(byte[] encryptedDocumentId, byte[] counterAdjustedIndexFactor)>> searchTagPostingListMap;
 
@@ -67,7 +68,7 @@ namespace SSE.Core.Models
                 return postingList;
             }
 
-            return new List<(byte[], byte[])>();
+            return EMPTY_LIST;
         }
     }
 }
