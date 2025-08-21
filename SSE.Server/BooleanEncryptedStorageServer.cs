@@ -21,34 +21,40 @@ namespace SSE.Server
         {
             var postingList = encryptedDatabase.RetrievePostingList(Convert.ToBase64String(query.Stag));
 
-            for (int occurenceIndex = 0; occurenceIndex < postingList.Count; occurenceIndex++)
-            {
-                var (encryptedDocumentId, CounterAdjustedIndexFactorY) = postingList[occurenceIndex];
+            bool isConjunctive = query.ConjunctiveTokenSets.Values.Any(ts => ts.Count > 0);
 
-                // xtokens are indexed by c on the client
-                if (!query.ConjunctiveTokenSets.TryGetValue(occurenceIndex, out var testTokens) || testTokens.Count == 0)
+            for (int occurrenceIndex = 0; occurrenceIndex < postingList.Count; occurrenceIndex++)
+            {
+                var (encryptedDocumentId, yBytes) = postingList[occurrenceIndex];
+
+                if (!isConjunctive)
                 {
-                    // Single-keyword (or missing tokens) -> accept directly
+                    // Single-keyword query: accept directly
                     yield return encryptedDocumentId;
                     continue;
                 }
 
-                bool allSecondaryKeywordsMatch = true;
-                foreach (var testToken in testTokens)
+                // Conjunctive case: missing token set => treat as non-match (NOT auto-accept)
+                if (!query.ConjunctiveTokenSets.TryGetValue(occurrenceIndex, out var testTokens) || testTokens.Count == 0)
                 {
-                    var testVal = BigInteger.ModPow(
-                        testToken.AsBigInteger(),
-                        CounterAdjustedIndexFactorY.AsBigInteger(),
-                        CryptoUtils.Prime256Bit);
+                    continue;
+                }
 
+                var y = yBytes.AsBigInteger(); // ensure consistent unsigned big-endian extension
+
+                bool allMatch = true;
+                foreach (var xtokenBytes in testTokens)
+                {
+                    var xtoken = xtokenBytes.AsBigInteger();
+                    var testVal = BigInteger.ModPow(xtoken, y, CryptoUtils.Prime256Bit);
                     if (!encryptedDatabase.ContainsMembershipTag(testVal))
                     {
-                        allSecondaryKeywordsMatch = false;
+                        allMatch = false;
                         break;
                     }
                 }
 
-                if (allSecondaryKeywordsMatch)
+                if (allMatch)
                 {
                     yield return encryptedDocumentId;
                 }
