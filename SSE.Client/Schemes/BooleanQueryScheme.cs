@@ -1,4 +1,5 @@
-﻿using SSE.Core.Models;
+﻿using SSE.Core;
+using SSE.Core.Models;
 using SSE.Cryptography;
 using SSE.Server;
 using System.Numerics;
@@ -63,6 +64,13 @@ namespace SSE.Client.Schemes
             return (keys, encryptedDatabase);
         }
 
+        public IEnumerable<string> Search(BooleanEncryptedStorageServer server, params string[] keywords)
+        {
+            QueryMessage query = GenerateQuery(keywords);
+            var encryptedResults = server.ProcessQuery(query);
+            return encryptedResults.Select(x => DecryptDocumentIdentifier(keywords, x));
+        }
+
         /// <summary>
         /// Derives the per-(keyword, occurrenceIndex) counter factor z in exponent domain ensuring invertibility mod (p-1).
         /// </summary>
@@ -115,13 +123,6 @@ namespace SSE.Client.Schemes
             );
         }
 
-        public IEnumerable<string> Search(BooleanEncryptedStorageServer server, params string[] keywords)
-        {
-            QueryMessage query = GenerateQuery(keywords);
-            var encryptedResults = server.ProcessQuery(query);
-            return encryptedResults.Select(x => DecryptDocumentIdentifier(keywords, x));
-        }
-
         private string DecryptDocumentIdentifier(string[] keywords, byte[] encryptedDocId)
         {
             var keyWrapper = new EncryptedValue(keywords[0], keys.DocumentEncryptionKeySeed);
@@ -155,7 +156,7 @@ namespace SSE.Client.Schemes
         /// Generates the query message:
         /// Stag = PRF(K_T, pivotKeyword) and a sequence of conjunctive test token sets for each occurrence index.
         /// </summary>
-        public QueryMessage GenerateQuery(string[] keywords)
+        private QueryMessage GenerateQuery(string[] keywords)
         {
             var pivotKeyword = keywords[0];
             var searchTag = new EncryptedValue(pivotKeyword, keys.SearchTagKey).Value;
