@@ -12,6 +12,7 @@ namespace SSE.Client.Schemes
     public class BooleanQueryScheme
     {
         private KeyCollection keys = new();
+        public KeyCollection Keys => keys; // expose read-only view
 
         private static readonly BigInteger PrimeModulus = CryptoUtils.Prime256Bit;
         private static readonly BigInteger ExponentGroupOrder = CryptoUtils.Prime256Bit - 1;
@@ -26,7 +27,16 @@ namespace SSE.Client.Schemes
 
         public (KeyCollection, BooleanEncryptedDatabase) Setup(Database<(string, string)> db)
         {
-            Dictionary<string, List<string>> keywordToDocumentIds = db.GetMetadata();
+            // Reuse the generic metadata-based setup.
+            return SetupFromMetadata(db.GetMetadata());
+        }
+
+        /// <summary>
+        /// Generic setup accepting an already constructed mapping keyword -> list of document identifiers.
+        /// Enables reuse of OXT build logic for higher-level schemes (e.g. substring SSE built on q-grams).
+        /// </summary>
+        public (KeyCollection, BooleanEncryptedDatabase) SetupFromMetadata(Dictionary<string, List<string>> keywordToDocumentIds)
+        {
             List<string> keywords = keywordToDocumentIds.Keys.ToList();
 
             Dictionary<string, List<(byte[] EncryptedDocId, byte[] InvertedCounterAppliedIndex)>> keywordPostingLists = new();
@@ -66,9 +76,13 @@ namespace SSE.Client.Schemes
 
         public IEnumerable<string> Search(BooleanEncryptedStorageServer server, params string[] keywords)
         {
+            if (keywords == null || keywords.Length == 0) yield break;
             QueryMessage query = GenerateQuery(keywords);
             var encryptedResults = server.ProcessQuery(query);
-            return encryptedResults.Select(x => DecryptDocumentIdentifier(keywords, x));
+            foreach (var res in encryptedResults)
+            {
+                yield return DecryptDocumentIdentifier(keywords, res);
+            }
         }
 
         /// <summary>
