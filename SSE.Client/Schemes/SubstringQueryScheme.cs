@@ -1,13 +1,10 @@
 using SSE.Core.Models;
 using SSE.Server;
-using System.Text;
 
 namespace SSE.Client.Schemes
 {
     /// <summary>
-    /// Substring Searchable Symmetric Encryption (SUB-SSE-OXT) following Faber et al. 2015 design idea:
-    /// Reduce substring search to a conjunctive multi-keyword query over q-grams using the underlying OXT boolean scheme.
-    /// This prototype uses fixed q-gram window sizes (defaults 3..5) and performs client-side post-filtering.
+    /// SUB-OXT style scheme (Faber et al.)
     /// </summary>
     public class SubstringQueryScheme
     {
@@ -15,119 +12,111 @@ namespace SSE.Client.Schemes
         private readonly int qMin;
         private readonly int qMax;
         private readonly char boundaryChar;
-        private Dictionary<string, List<string>>? gramToDocIds; // built metadata
-        private BooleanEncryptedDatabase? encryptedDb;
+        private Dictionary<string, List<string>>? tokenToDocIds;
         private BooleanEncryptedStorageServer? server;
 
         public SubstringQueryScheme(int qMin = 3, int qMax = 5, char boundaryChar = '#')
         {
-            if (qMin < 2 || qMin > qMax) throw new ArgumentException("Invalid q-range");
+            if (qMin < 2 || qMin > qMax) throw new ArgumentException("Invalid q range");
             this.qMin = qMin;
             this.qMax = qMax;
             this.boundaryChar = boundaryChar;
-            this.booleanScheme = new BooleanQueryScheme();
+            booleanScheme = new BooleanQueryScheme();
         }
 
         /// <summary>
-        /// Builds q-gram metadata and underlying encrypted OXT structures from plaintext database content.
+        /// Builds token metadata (q-gram + adjacency tokens) and underlying encrypted OXT structures from plaintext database content.
         /// Expected database tuple: (id, content)
         /// </summary>
         public void Setup(Database<(string id, string content)> database)
         {
-            gramToDocIds = BuildQGramMetadata(database);
-            var (_, db) = booleanScheme.SetupFromMetadata(gramToDocIds);
-            encryptedDb = db;
+            tokenToDocIds = BuildTokenMetadata(database);
+            var (_, db) = booleanScheme.SetupFromMetadata(tokenToDocIds);
             server = new BooleanEncryptedStorageServer(db);
         }
 
         /// <summary>
         /// Execute a substring search returning matching document identifiers.
+        /// Pattern must have length >= qMin.
         /// </summary>
         public IEnumerable<string> Search(string pattern)
         {
-            if (string.IsNullOrEmpty(pattern) || encryptedDb == null || server == null || gramToDocIds == null)
-                return Enumerable.Empty<string>();
+            if (string.IsNullOrEmpty(pattern) || server == null || tokenToDocIds == null) return Enumerable.Empty<string>();
+            var norm = pattern.ToLowerInvariant();
+            if (norm.Length < qMin) return Enumerable.Empty<string>();
 
-            // Short pattern handling: if pattern length < qMin, fall back to scanning all docs (leakage heavy) - here return empty for simplicity.
-            if (pattern.Length < qMin) return Enumerable.Empty<string>();
+            int qSel = Math.Min(qMax, norm.Length);
+            var grams = ExtractFixedQGrams(norm, qSel).ToList();
+            if (grams.Count == 0) return Enumerable.Empty<string>();
 
-            var grams = ExtractQueryQGrams(pattern).ToArray();
-            if (grams.Length == 0) return Enumerable.Empty<string>();
-
-            // Choose pivot = rarest gram (min posting list size) to optimize OXT
-            var pivot = grams.OrderBy(g => gramToDocIds.TryGetValue(g, out var lst) ? lst.Count : int.MaxValue).First();
-            var reordered = new List<string> { pivot };
-            reordered.AddRange(grams.Where(g => g != pivot));
-
-            var candidateDocIds = booleanScheme.Search(server, reordered.ToArray()).ToList();
-
-            // Post-filter: verify substring actually appears (would need original plaintext; we only stored id->content externally)
-            // Here we cannot access plaintext database inside this class after setup unless we store mapping; store simple map for filtering.
-            var idToContent = plaintextCache; // may be null if not captured.
-            if (idToContent == null)
+            List<string> tokens = new();
+            foreach (var g in grams) tokens.Add($"G:{qSel}:{g}");
+            for (int i = 0; i + 1 < grams.Count; i++) tokens.Add($"A:{qSel}:{grams[i]}|{grams[i + 1]}");
+            // full-pattern token if pattern fits within qMax and is not identical to qSel single gram case already covered
+            if (norm.Length >= qMin && norm.Length <= qMax && norm.Length != qSel)
             {
-                // Without plaintext, return candidates (could include false positives).
-                return candidateDocIds;
+                tokens.Add($"G:{norm.Length}:{norm}");
             }
-            var patternLower = pattern.ToLowerInvariant();
-            return candidateDocIds.Where(id => idToContent.TryGetValue(id, out var c) && c.Contains(patternLower, StringComparison.OrdinalIgnoreCase));
+            // If pattern length exactly equals qSel but contained multiple grams (only when norm.Length > qSel) we already covered; if exactly one gram we already added it.
+            if (tokens.Count == 0) return Enumerable.Empty<string>();
+
+            var pivot = tokens.OrderBy(t => tokenToDocIds.TryGetValue(t, out var lst) ? lst.Count : int.MaxValue).First();
+            var reordered = new List<string> { pivot };
+            reordered.AddRange(tokens.Where(t => t != pivot));
+            return booleanScheme.Search(server, reordered.ToArray());
         }
 
-        private Dictionary<string, string>? plaintextCache; // optional mapping for verification
-
         /// <summary>
-        /// Build mapping q-gram -> docIds (sets) for all docs.
+        /// Build mapping token -> docIds. Tokens include:
+        ///  G:gram (per occurrence set semantics)
+        ///  A:gram_i|gram_{i+1} (adjacent consecutive grams)
+        /// A document is associated with a token if the token occurs at least once (no frequency leakage beyond presence).
         /// </summary>
-        private Dictionary<string, List<string>> BuildQGramMetadata(Database<(string id, string content)> database)
+        private Dictionary<string, List<string>> BuildTokenMetadata(Database<(string id, string content)> database)
         {
             var map = new Dictionary<string, List<string>>();
-            plaintextCache = database.Data.ToDictionary(t => t.id, t => t.content.ToLowerInvariant());
             foreach (var (id, content) in database.Data)
             {
-                foreach (var gram in ExtractAllDocumentQGrams(content))
+                var norm = content.ToLowerInvariant();
+                // Pad with boundary chars so prefix/suffix patterns become distinct
+                var padded = new string(boundaryChar, qMax - 1) + norm + new string(boundaryChar, qMax - 1);
+                var seen = new HashSet<string>();
+                for (int q = qMin; q <= qMax; q++)
                 {
-                    if (!map.TryGetValue(gram, out var list))
+                    var grams = ExtractFixedQGrams(padded, q).ToList();
+                    foreach (var g in grams)
                     {
-                        list = new List<string>();
-                        map[gram] = list;
+                        // Skip all-boundary grams
+                        if (g.All(c => c == boundaryChar)) continue;
+                        var token = $"G:{q}:{g}";
+                        if (seen.Add(token)) Append(map, token, id);
                     }
-                    list.Add(id);
+                    for (int i = 0; i + 1 < grams.Count; i++)
+                    {
+                        var g1 = grams[i];
+                        var g2 = grams[i + 1];
+                        if ((g1.All(c => c == boundaryChar)) || (g2.All(c => c == boundaryChar))) continue;
+                        var atok = $"A:{q}:{g1}|{g2}";
+                        if (seen.Add(atok)) Append(map, atok, id);
+                    }
                 }
             }
             return map;
         }
 
-        private IEnumerable<string> ExtractAllDocumentQGrams(string content)
+        private static void Append(Dictionary<string, List<string>> map, string token, string docId)
         {
-            if (string.IsNullOrEmpty(content)) yield break;
-            var norm = content.ToLowerInvariant();
-            var padded = new string(boundaryChar, qMax - 1) + norm + new string(boundaryChar, qMax - 1);
-            for (int q = qMin; q <= qMax; q++)
-            {
-                for (int i = 0; i + q <= padded.Length; i++)
-                {
-                    var slice = padded.AsSpan(i, q);
-                    // Skip grams consisting solely of boundary chars
-                    if (slice.IndexOf(boundaryChar) == 0 && slice.ToString().All(c => c == boundaryChar)) continue;
-                    yield return slice.ToString();
-                }
-            }
+            if (!map.TryGetValue(token, out var list)) map[token] = list = new List<string>();
+            list.Add(docId);
         }
 
-        private IEnumerable<string> ExtractQueryQGrams(string pattern)
+        /// <summary>
+        /// Extract fixed-length q-grams from text (no padding). Overlapping grams length q.
+        /// </summary>
+        private static IEnumerable<string> ExtractFixedQGrams(string text, int q)
         {
-            var norm = pattern.ToLowerInvariant();
-            if (norm.Length < qMin) yield break;
-            int qUpper = Math.Min(qMax, norm.Length);
-            for (int q = qUpper; q >= qMin; q--) // prefer longer grams first (better selectivity)
-            {
-                for (int i = 0; i + q <= norm.Length; i++)
-                {
-                    yield return norm.Substring(i, q);
-                }
-                // Use only one q size (largest fitting) for query to bound token set size
-                break;
-            }
+            if (string.IsNullOrEmpty(text) || text.Length < q) yield break;
+            for (int i = 0; i + q <= text.Length; i++) yield return text.Substring(i, q);
         }
     }
 }
