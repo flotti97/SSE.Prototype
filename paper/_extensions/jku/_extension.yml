@@ -1,0 +1,14 @@
+title: Jku
+author: flotti
+version: 1.0.0
+quarto-required: ">=1.6.0"
+contributes:
+  formats:
+    typst:
+      template-partials:
+        - typst-template.typ
+        - typst-show.typ
+      format-resources:
+        - arr.png
+        - jkuen.png
+

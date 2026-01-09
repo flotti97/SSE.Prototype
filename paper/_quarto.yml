@@ -1,0 +1,82 @@
+project:
+  title: "BA_Symmetric_Searchable_Encryption"
+
+title: "Symmetric Searchable Encryption"
+submitters:
+  - "Florian Schwarzmayr"
+department: "Institute of Computational Perception"
+supervisors:
+  - "Prof. Dr. Josef Scharinger"
+type-of-work: 3
+state: 0
+version: "1.0"
+degree: "Bachelor of Science"
+study: "Computer Science"
+
+# Preface configuration
+statutory-declaration: true
+toc-depth: 3
+table-of-figures: true
+table-of-tables: true
+table-of-code: false
+
+# Abstract and acknowledgements
+abstract: |
+  This comprehensive template demonstrates all available content types and features 
+  of the JKU Typst template system. It includes examples of mathematical formulations, 
+  code blocks, figures, tables, citations, and various formatting options. The template 
+  serves as both documentation and a practical starting point for academic writing.
+
+zusammenfassung: |
+  Diese umfassende Vorlage demonstriert alle verfügbaren Inhaltstypen und Funktionen 
+  des JKU Typst-Template-Systems. Sie enthält Beispiele für mathematische Formulierungen, 
+  Codeblöcke, Abbildungen, Tabellen, Zitate und verschiedene Formatierungsoptionen.
+
+acknowledgement: |
+  Special thanks to the Typst community and the template developers who made this 
+  comprehensive documentation possible.
+
+# Abbreviations
+abbrevs:
+  - key: ML
+    value: Machine Learning
+  - key: AI
+    value: Artificial Intelligence
+  - key: API
+    value: Application Programming Interface
+  - key: GPU
+    value: Graphics Processing Unit
+  - key: CPU
+    value: Central Processing Unit
+  - key: RAM
+    value: Random Access Memory
+  - key: SQL
+    value: Structured Query Language
+  - key: HTTP
+    value: HyperText Transfer Protocol
+
+# Styling options
+otm-evolver: true
+heading-depth: 3
+content-heading: "Content Showcase"
+
+link-style:
+  color: "rgb(0, 100, 200)"
+  hyphenate: true
+
+cite-style:
+  color: "blue"
+  style: "normal"
+
+ref-style:
+  weight: "bold"
+  style: "italic"
+
+# Bibliography
+bibliography: "references.bib"
+csl-style: "ieee"
+bibliography-font-size: 9
+
+format:
+  jku-typst: default
+

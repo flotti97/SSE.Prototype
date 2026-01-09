@@ -1,0 +1,39 @@
+<!-- Should be 20 to 25 pages, extensive citing (in every section) -->
+
+# Introduction
+
+## Motivation
+
+## Problem Statement
+
+## Outline
+
+# Method
+
+<!-- theretical foundation, what is SSE and how does it work -->
+
+# Implementation
+
+<!-- project structure, explain key code components, include code snippets -->
+
+# Users Guide
+
+<!-- user guide for the tui -->
+
+# Experimental Results
+
+<!-- results of the benchmarks, compare different schemes, evaluate how the different implementations index size scales also depending on the k-gram size -->
+
+# Alternative Methods
+
+<!-- 2-3 alternative methods, 1 page per method -->
+
+# Discussion
+
+## Conclusion
+
+## Limitations
+
+## Outlook
+
+<!-- what could be added to the current implementation to make it better -->
