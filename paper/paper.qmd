@@ -64,7 +64,74 @@ However, position matters. "act" and "cat" have the same letters but different m
 
 # Implementation
 
-<!-- project structure, explain key code components, include code snippets -->
+The prototype is implemented in **C#** using **.NET 8**, leveraging its strong typing and modern language features. The solution is organized into several projects to separate concerns: `SSE.Core`, `SSE.Client`, `SSE.Server`, `SSE.Cryptography`, and `SSE.CLI`.
+
+## Project Structure
+
+-   **SSE.Core**: Contains shared models (e.g., `Database`, `EncryptedDatabase`) and interfaces (`IIndex`).
+-   **SSE.Cryptography**: Provides cryptographic primitives. It wraps .NET's `AES` and `HMACSHA256` and implements modular arithmetic using `System.Numerics.BigInteger` for the OXT protocol.
+-   **SSE.Client**: Implements the logic for the SSE schemes. This is where the index construction (`Setup`) and query token generation (`Search`) happen.
+-   **SSE.Server**: Simulates the cloud server. It holds the encrypted database and executes the search logic using tokens provided by the client.
+-   **SSE.CLI**: A Text-based User Interface (TUI) for interacting with the system.
+
+## Key Components
+
+### Basic Scheme
+
+The `BasicScheme` class implements the single-keyword search. The `Setup` method iterates through the keyword metadata. For each keyword, it derives two keys: a `labelKey` (to locate the list) and an `identifierKey` (to encrypt the document IDs).
+
+```csharp
+public static (byte[], EncryptedDatabase) Setup(Database<(string, string)> db)
+{
+    byte[] masterKey = CryptoUtils.GenerateRandomKey();
+    var result = new List<(byte[] label, byte[] identifier)>();
+    var metadata = db.GetMetadata();
+
+    foreach (var keyword in metadata.Keys)
+    {
+        var labelKey = GetLabelKey(masterKey, keyword);
+        var identifierKey = GetIdentifierKey(masterKey, keyword);
+        // ... Encrypt identifiers and add to result ...
+    }
+    // ... Sort and build dictionary ...
+}
+```
+
+### Boolean Query Scheme (OXT)
+
+The `BooleanQueryScheme` is more complex. It implements the OXT protocol. The `Setup` phase builds the `TSet` (posting lists) and the `XSet` (membership tags).
+
+The XSet tags are constructed using modular exponentiation in a prime group. The `BuildConjunctiveMembershipTag` method illustrates this:
+
+```csharp
+private BigInteger BuildConjunctiveMembershipTag(string keyword, BigInteger crossIdentifierExp)
+{
+    // ... Randomize keyword ...
+    var exponent = CryptoUtils.ModMultiply(obscuredKeyword, crossIdentifierExp, ExponentGroupOrder);
+    return BigInteger.ModPow(
+        CryptoUtils.Generator(PrimeModulus),
+        exponent,
+        PrimeModulus
+    );
+}
+```
+
+This ensures that the server can verify membership only if it possesses the correct trapdoor information provided during the search protocol.
+
+### Substring Query Scheme
+
+The `SubstringQueryScheme` builds upon the `BooleanQueryScheme`. It preprocesses the text by extracting $q$-grams. It pads the text with boundary characters (e.g., `#`) to distinguish prefixes and suffixes.
+
+```csharp
+private static IEnumerable<string> ExtractFixedQGrams(string text, int q)
+{
+    if (string.IsNullOrEmpty(text) || text.Length < q) yield break;
+    for (int i = 0; i + q <= text.Length; i++) 
+        yield return text.Substring(i, q);
+}
+```
+
+The search logic decomposes the query pattern into $q$-grams and executes a boolean AND query on the underlying OXT scheme.
 
 # Users Guide
 
