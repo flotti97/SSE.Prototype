@@ -240,4 +240,4 @@ Despite the successful implementation, the current prototype has several limitat
 
 ## Outlook
 
-<!-- what could be added to the current implementation to make it better -->
+Future work could focus on addressing these limitations. Implementing **Dynamic SSE** would allow for real-time updates to the encrypted database, making the system suitable for active file systems. Integrating a **persistent storage backend** would enable the system to scale to millions of documents. Finally, exploring **Verifiable SSE** @Bost2016VerifiableDS would ensure that a malicious server cannot return incomplete or incorrect results without detection.
