@@ -184,7 +184,45 @@ Once the data is loaded and encrypted (Setup phase), you can perform searches.
 
 # Alternative Methods
 
-<!-- 2-3 alternative methods, 1 page per method -->
+While SSE is a powerful tool, it is not the only approach to searching on encrypted data. Here we verify 2-3 alternative methods.
+
+## Deterministic Encryption (DTE)
+
+Deterministic Encryption (DTE) is a scheme where encrypting the same plaintext $m$ with the same key $k$ always yields the same ciphertext $c$. This contrasts with probabilistic encryption (like AES-CBC with a random IV), where the ciphertext changes every time.
+
+**Advantages:**
+
+-   **Efficiency:** Search is extremely fast. To search for a keyword $w$, the client simply encrypts $w$ to get $c_w$ and the server performs a standard lookup for $c_w$ in the database.
+-   **Simplicity:** It can be implemented using standard database technologies (e.g., SQL equality checks).
+
+**Disadvantages:**
+
+-   **Security:** DTE leaks the **frequency** of keywords (if "apple" appears 10 times, the same ciphertext appears 10 times) and the **repetition pattern**. This makes it vulnerable to frequency analysis attacks, especially on datasets with low entropy (e.g., gender, age) @Bsch2014ASO. It provides a much lower security guarantee than SSE.
+
+## Fully Homomorphic Encryption (FHE)
+
+Fully Homomorphic Encryption (FHE) allows arbitrary computations to be performed on ciphertext without decrypting it. If $Enc(x)$ is the encryption of $x$, FHE allows computing $Enc(f(x))$ given only $Enc(x)$ and the function $f$.
+
+**Advantages:**
+
+-   **Security:** It is the "holy grail" of cryptography. It leaks almost nothing to the server, as the server blindly computes functions without seeing data or access patterns.
+-   **Flexibility:** It supports any type of query, not just search.
+
+**Disadvantages:**
+
+-   **Performance:** Despite recent advances, FHE remains computationally prohibitive for large-scale search operations. It is orders of magnitude slower than SSE @Poh2017SearchableSE. Searching a database essentially requires the server to "touch" every encrypted record to compute the result, preventing the use of efficient indices.
+
+## Oblivious RAM (ORAM)
+
+Oblivious RAM (ORAM) is a cryptographic primitive that hides the **access pattern** of a client accessing memory. Even if the data is encrypted, the sequence of memory addresses accessed can leak information. ORAM continuously shuffles and re-encrypts data as it is accessed to obfuscate these patterns.
+
+**Advantages:**
+
+-   **Access Pattern Security:** It provides stronger security than standard SSE by hiding which documents are being accessed.
+
+**Disadvantages:**
+
+-   **Overhead:** ORAM introduces significant bandwidth and computational overhead. Each logical read/write operation translates to multiple physical read/writes (often logarithmic or polylogarithmic in the dataset size). While more efficient than FHE, it is generally slower than optimized SSE schemes for simple search tasks @Curtmola2006SearchableSE.
 
 # Discussion
 
