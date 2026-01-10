@@ -135,7 +135,48 @@ The search logic decomposes the query pattern into $q$-grams and executes a bool
 
 # Users Guide
 
-<!-- user guide for the tui -->
+The prototype includes a Console-based application (`SSE.CLI`) that demonstrates the functionality of the implemented schemes.
+
+## Getting Started
+
+1.  **Prerequisites**: Ensure the .NET 8 SDK is installed.
+2.  **Build**: Run `dotnet build` in the solution root.
+3.  **Run**: Execute `dotnet run --project SSE.CLI`.
+
+## Using the Interface
+
+Upon launching, the main menu is displayed:
+
+```text
+================================================================================
+ SSE Prototype - Select a Scheme
+================================================================================
+1. Basic Scheme (Cash et al. 2013)
+2. Boolean Query Scheme (OXT - Cash et al. 2013)
+3. Substring Query Scheme (Faber et al.)
+4. Exit
+
+Select an option:
+```
+
+### 1. Selecting a Scheme
+
+Press `1`, `2`, or `3` to select the desired SSE scheme.
+
+### 2. Loading Data
+
+After selecting a scheme, you will be prompted to choose a data source:
+
+-   **Use Sample Data**: Loads a small, hardcoded set of documents for quick testing.
+-   **Load from Directory**: Allows you to specify an absolute path to a folder containing `.txt` files. Each file is treated as a document.
+
+### 3. Performing Searches
+
+Once the data is loaded and encrypted (Setup phase), you can perform searches.
+
+-   **Basic Scheme**: Enter a single keyword (e.g., "encryption").
+-   **Boolean Scheme**: Enter multiple keywords separated by spaces (e.g., "encryption security"). This will find documents containing *both* terms.
+-   **Substring Scheme**: Enter a partial string (e.g., "crypt"). The system will find documents containing this fragment (e.g., "decryption", "cryptography").
 
 # Experimental Results
 
