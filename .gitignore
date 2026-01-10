@@ -5,6 +5,8 @@
 
 #custom
 test_documents
+*.md
+!README.md
 
 # User-specific files
 *.rsuser
