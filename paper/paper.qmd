@@ -228,7 +228,15 @@ Oblivious RAM (ORAM) is a cryptographic primitive that hides the **access patter
 
 ## Conclusion
 
+This thesis presented the design and implementation of a Searchable Symmetric Encryption (SSE) prototype in .NET. We successfully implemented three distinct schemes: a basic single-keyword scheme, a boolean query scheme based on the OXT protocol, and a substring query scheme using $q$-grams. The prototype demonstrates that it is possible to perform complex searches on encrypted data without compromising the confidentiality of the documents. The accompanying CLI provides a user-friendly way to interact with these complex cryptographic constructs.
+
 ## Limitations
+
+Despite the successful implementation, the current prototype has several limitations:
+
+1.  **Static Data:** The current implementation is static. Once the index is built, new documents cannot be added without rebuilding the entire index. Dynamic SSE (DSSE) schemes exist @Cash2014DynamicSE @Hahn2014SearchableEW but were outside the scope of this project.
+2.  **Memory Usage:** The prototype loads the entire index into memory. For very large datasets, a disk-based implementation (e.g., using a key-value store like RocksDB or Redis) would be necessary.
+3.  **Leakage:** As with all efficient SSE schemes, the prototype leaks the **search pattern** (whether the same query is repeated) and the **access pattern** (which documents match the query). While OXT minimizes leakage for boolean queries, it does not eliminate it.
 
 ## Outlook
 
