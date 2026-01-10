@@ -4,9 +4,27 @@
 
 ## Motivation
 
+In the era of cloud computing, outsourcing data storage has become a standard practice for individuals and organizations alike. It offers benefits such as scalability, cost-efficiency, and high availability. However, storing sensitive data on third-party servers raises significant privacy and security concerns. If the cloud provider is compromised or untrustworthy, sensitive information could be exposed.
+
+To mitigate these risks, encryption is the standard defense. Encrypting data before uploading it ensures that the cloud provider, or any adversary who gains access to the storage, cannot read the plaintext information. However, standard encryption destroys the ability to efficiently search the data. Trivial solutions, such as downloading the entire dataset and decrypting it locally to perform a search, negate the benefits of cloud storage (scalability and bandwidth efficiency). This creates a fundamental tension between data security and data utility @Poh2017SearchableSE.
+
+Searchable Symmetric Encryption (SSE) addresses this problem by allowing a client to store encrypted data on a server in such a way that the client can later execute search queries (e.g., keyword searches) and retrieve the matching documents without revealing the plaintext data or the query keywords to the server. This technology is crucial for enabling secure cloud storage services where privacy is paramount, such as in medical records systems, legal archives, and personal data backups @Bsch2014ASO.
+
 ## Problem Statement
 
+The core problem addressed in this thesis is the design and implementation of a Searchable Symmetric Encryption (SSE) prototype that balances efficiency, functionality, and security. While basic SSE schemes for single-keyword search exist, real-world applications often require more complex query capabilities, such as boolean queries (conjunctive searches) and substring searches (finding patterns within words) @Faber2015RichQO.
+
+Implementing these advanced features securely is non-trivial. It requires sophisticated cryptographic primitives and careful data structure design to minimize "leakage"-information that the server can infer about the data or queries from the access patterns. Furthermore, the implementation must be practical, scaling reasonably well with the size of the database. This project aims to demonstrate a functional SSE system in .NET that supports single-keyword, boolean, and substring queries, providing a tangible exploration of these theoretical concepts.
+
 ## Outline
+
+This thesis is structured as follows:
+
+- **Chapter 2 (Method)** lays the theoretical foundation, explaining the definitions of SSE, the security models, and the specific cryptographic constructions used for keyword, boolean, and substring search.
+- **Chapter 3 (Implementation)** details the software architecture of the developed prototype, describing the project structure, key components, and providing code snippets to illustrate the core logic.
+- **Chapter 4 (Users Guide)** provides a practical guide on how to install, configure, and use the Command Line Interface (CLI) application developed in this project.
+- **Chapter 5 (Alternative Methods)** discusses other approaches to searching on encrypted data, such as Deterministic Encryption and Fully Homomorphic Encryption, comparing them to SSE.
+- **Chapter 6 (Discussion)** concludes the thesis, summarizing the achievements, analyzing the limitations of the current prototype, and suggesting directions for future work.
 
 # Method
 
