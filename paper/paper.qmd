@@ -180,7 +180,159 @@ Once the data is loaded and encrypted (Setup phase), you can perform searches.
 
 # Experimental Results
 
-<!-- results of the benchmarks, compare different schemes, evaluate how the different implementations index size scales also depending on the k-gram size -->
+To evaluate the performance of the implemented SSE schemes, we conducted a series of benchmarks. The experiments were executed on a machine equipped with an Intel Core i7-1165G7 CPU and 16 GB of RAM. The benchmarks measure the initialization time (Setup) and the search latency (Search) across the three implemented schemes: Basic, Boolean (OXT), and Substring.
+
+## Basic Scheme Performance
+
+The Basic Scheme (inverted index) was tested with varying dataset sizes (10, 50, and 100 documents).
+
+```{python}
+#| label: fig-basic-performance
+#| fig-cap: "Basic Scheme: Setup and Search Performance vs. Document Count"
+#| echo: false
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import re
+
+def parse_time(time_str):
+    if not isinstance(time_str, str): return 0.0
+    # Remove commas
+    clean = time_str.replace(',', '')
+    match = re.match(r'([\d\.]+)\s*(\w+)', clean)
+    if not match: return 0.0
+    val = float(match.group(1))
+    unit = match.group(2)
+    if unit == 'ns': return val / 1e6 # to ms
+    if unit == 'μs' or unit == 'us': return val / 1e3 # to ms
+    if unit == 'ms': return val
+    if unit == 's': return val * 1e3
+    return val
+
+# Load data
+try:
+    df = pd.read_csv("benchmark_results/SSE.Benchmark.Benchmarks.BasicSchemeBenchmarks-report.csv")
+
+    # Filter Setup and Search
+    setup_df = df[df['Method'] == 'SchemeSetup'].copy()
+    search_df = df[df['Method'] == 'Search'].copy()
+
+    # Parse times to ms
+    setup_df['Mean_ms'] = setup_df['Mean'].apply(parse_time)
+    search_df['Mean_ms'] = search_df['Mean'].apply(parse_time)
+
+    # Group by DocumentCount
+    setup_agg = setup_df.groupby('DocumentCount')['Mean_ms'].mean().sort_index()
+    search_agg = search_df.groupby('DocumentCount')['Mean_ms'].mean().sort_index()
+
+    # Plot
+    fig, ax1 = plt.subplots(figsize=(8, 5))
+
+    color = 'tab:blue'
+    ax1.set_xlabel('Document Count')
+    ax1.set_ylabel('Setup Time (ms)', color=color)
+    ax1.plot(setup_agg.index, setup_agg.values, color=color, marker='o', label='Setup')
+    ax1.tick_params(axis='y', labelcolor=color)
+    ax1.grid(True, alpha=0.3)
+
+    ax2 = ax1.twinx()
+    color = 'tab:red'
+    ax2.set_ylabel('Search Time (ms)', color=color)
+    ax2.plot(search_agg.index, search_agg.values, color=color, marker='s', linestyle='--', label='Search')
+    ax2.tick_params(axis='y', labelcolor=color)
+
+    plt.title('Basic Scheme Scalability')
+    plt.tight_layout()
+    plt.show()
+except Exception as e:
+    print(f"Error generating plot: {e}")
+```
+
+As shown in @fig-basic-performance, the setup time increases linearly with the number of documents, which is expected as the index size grows. The search time remains extremely low (in the microsecond range), demonstrating the efficiency of the inverted index lookup.
+
+## Boolean Scheme Performance
+
+The Boolean Query Scheme (OXT) introduces additional cryptographic overhead to support conjunctive queries securely. We compared the search latency for different query complexities.
+
+```{python}
+#| label: fig-boolean-performance
+#| fig-cap: "Boolean Scheme: Search Latency by Query"
+#| echo: false
+
+try:
+    df_bool = pd.read_csv("benchmark_results/SSE.Benchmark.Benchmarks.BooleanSchemeBenchmarks-report.csv")
+    search_bool = df_bool[df_bool['Method'] == 'Search'].copy()
+    search_bool['Mean_ms'] = search_bool['Mean'].apply(parse_time)
+
+    # Sort by time
+    search_bool = search_bool.sort_values('Mean_ms')
+
+    plt.figure(figsize=(8, 5))
+    bars = plt.barh(search_bool['searchTerms'], search_bool['Mean_ms'], color='skyblue')
+    plt.xlabel('Search Time (ms)')
+    plt.title('Boolean Search Latency')
+    plt.xscale('log') # Log scale due to large variance
+    plt.grid(True, axis='x', alpha=0.3)
+
+    # Add labels
+    for i, v in enumerate(search_bool['Mean_ms']):
+        plt.text(v * 1.1, i, f"{v:.3f} ms", va='center', fontsize=8)
+
+    plt.tight_layout()
+    plt.show()
+except Exception as e:
+    print(f"Error generating plot: {e}")
+```
+
+@fig-boolean-performance illustrates the cost of the OXT protocol. Single keyword searches are relatively fast, but complex conjunctive queries (e.g., "john crypto city") require significantly more time due to the modular exponentiations required for the cross-tags.
+
+## Substring Scheme Performance
+
+The Substring Scheme relies on decomposing text into $q$-grams. The choice of $q$ significantly impacts the index size and performance. We tested with $q=3, 4, 5$.
+
+```{python}
+#| label: fig-substring-performance
+#| fig-cap: "Substring Scheme: Impact of q-gram size"
+#| echo: false
+
+try:
+    df_sub = pd.read_csv("benchmark_results/SSE.Benchmark.Benchmarks.SubstringSchemeBenchmarks-report.csv")
+
+    # Setup
+    setup_sub = df_sub[df_sub['Method'] == 'Substring_Setup'].copy()
+    setup_sub['Mean_s'] = setup_sub['Mean'].apply(lambda x: parse_time(x) / 1000) # to seconds
+
+    # Search (Average across all terms for each q)
+    search_sub = df_sub[df_sub['Method'] == 'Substring_Search'].copy()
+    search_sub['Mean_ms'] = search_sub['Mean'].apply(parse_time)
+
+    setup_agg = setup_sub.groupby('QGramSize')['Mean_s'].mean().sort_index()
+    search_agg = search_sub.groupby('QGramSize')['Mean_ms'].mean().sort_index()
+
+    fig, ax1 = plt.subplots(figsize=(8, 5))
+
+    color = 'tab:purple'
+    ax1.set_xlabel('Q-Gram Size (q)')
+    ax1.set_ylabel('Setup Time (s)', color=color)
+    ax1.plot(setup_agg.index, setup_agg.values, color=color, marker='o', label='Setup')
+    ax1.tick_params(axis='y', labelcolor=color)
+    ax1.grid(True, alpha=0.3)
+
+    ax2 = ax1.twinx()
+    color = 'tab:orange'
+    ax2.set_ylabel('Avg Search Time (ms)', color=color)
+    ax2.plot(search_agg.index, search_agg.values, color=color, marker='^', linestyle='--', label='Search')
+    ax2.tick_params(axis='y', labelcolor=color)
+
+    plt.title('Impact of Q-Gram Size')
+    plt.xticks(setup_agg.index)
+    plt.tight_layout()
+    plt.show()
+except Exception as e:
+    print(f"Error generating plot: {e}")
+```
+
+Increasing $q$ (the length of the substring) generally increases the setup time and index size because the number of unique $q$-grams grows. However, as seen in @fig-substring-performance, larger $q$ values can improve search performance for longer patterns by reducing the number of intermediate results that need to be intersected.
 
 # Alternative Methods
 
