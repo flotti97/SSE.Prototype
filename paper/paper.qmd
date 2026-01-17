@@ -216,7 +216,7 @@ For the scalability experiments, we constructed subsets of increasing size from 
 
 ## Basic Scheme Performance
 
-The Basic Scheme (inverted index) was tested with varying dataset sizes (10, 50, and 100 documents).
+The Basic Scheme (inverted index) was tested with varying dataset sizes ($10$, $100$, $1 000$ and $10000$ documents).
 
 ```{python}
 #| label: fig-basic-performance
@@ -296,7 +296,7 @@ search_bool['Mean_ms'] = search_bool['Mean'].apply(parse_time)
 search_bool = search_bool.sort_values('Mean_ms')
 
 plt.figure()
-bars = plt.barh(search_bool['searchTerms'], search_bool['Mean_ms'], color='lightgray')
+bars = plt.barh(search_bool['searchTerms'], search_bool['Mean_ms'], color='white', edgecolor='black', hatch='///')
 plt.xlabel('Search Time (ms)')
 plt.title('Boolean Search Latency (10,000 Documents)')
 plt.xscale('log') 
@@ -304,9 +304,12 @@ plt.grid(True, axis='x', alpha=0.3)
 
 # Add labels
 max_val = search_bool['Mean_ms'].max()
+# Define a background box (bbox) with a border for better readability
+bbox_props = dict(boxstyle="round,pad=0.3", fc="white", ec="black", lw=1.0, alpha=1.0)
+
 for i, v in enumerate(search_bool['Mean_ms']):
     if v > max_val / 10:
-        plt.text(v, i, f"{v/1000:.3f} s  ", va='center', ha='right', fontsize=8)
+        plt.text(v * 0.8, i, f"{v/1000:.1f} s", va='center', ha='right', fontsize=8, color='black', bbox=bbox_props)
     else:
         plt.text(v * 1.1, i, f"{v:.3f} ms", va='center', ha='left', fontsize=8)
 
