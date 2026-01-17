@@ -39,6 +39,32 @@ An SSE scheme generally consists of four algorithms: `KeyGen`, `BuildIndex`, `Tr
 3.  `Trapdoor`: Takes the key $K$ and a keyword $w$ to generate a search token $t_w$.
 4.  `Search`: Takes the index $I$ and token $t_w$ to return the identifiers of documents containing $w$.
 
+```
+%%| label: fig-sse-sequence
+%%| fig-cap: "Sequence Diagram of the SSE Protocol"
+sequenceDiagram
+    participant Client
+    participant Server
+
+
+    Note over Client, Server: Setup
+
+    Client->>Client: Generate Key (K)
+    Client->>Client: Build Index (I) & Ciphertexts (C)
+    Client->>Server: Upload Index (I) and Encrypted Docs (C)
+        
+    Note over Client, Server: Search
+    Client->>Client: User inputs query keyword (w)
+    Client->>Client: Generate Token (t_w) using K
+    Client->>Server: Send Search Token (t_w)
+    
+
+    Server->>Server: Query Index (I) with Token (t_w)
+    Server-->>Client: Return Encrypted Identifiers
+    
+    Client->>Client: Decrypt Results
+```
+
 ### Basic Keyword Search (Inverted Index)
 
 The foundation of efficient SSE is the inverted index. In a plaintext inverted index, a dictionary maps each keyword to a list of document identifiers. In SSE, this structure is encrypted. The scheme implemented in this project follows the "SSE-1" construction by Curtmola et al. @Curtmola2006SearchableSE and the improvements by Cash et al. @Cash2013HighlyScalableSS.
@@ -216,21 +242,21 @@ def parse_time(time_str):
     return val
 
 # Load data
-    df = pd.read_csv("benchmark_results/SSE.Benchmark.Benchmarks.BasicSchemeBenchmarks-report.csv")
+df = pd.read_csv("benchmark_results/SSE.Benchmark.Benchmarks.BasicSchemeBenchmarks-report.csv")
 
-    # Filter Setup and Search
-    setup_df = df[df['Method'] == 'SchemeSetup'].copy()
-    search_df = df[df['Method'] == 'Search'].copy()
+# Filter Setup and Search
+setup_df = df[df['Method'] == 'SchemeSetup'].copy()
+search_df = df[df['Method'] == 'Search'].copy()
 
-    # Parse times to ms
-    setup_df['Mean_ms'] = setup_df['Mean'].apply(parse_time)
-    search_df['Mean_ms'] = search_df['Mean'].apply(parse_time)
+# Parse times to ms
+setup_df['Mean_ms'] = setup_df['Mean'].apply(parse_time)
+search_df['Mean_ms'] = search_df['Mean'].apply(parse_time)
 
-    # Group by DocumentCount
-    setup_agg = setup_df.groupby('DocumentCount')['Mean_ms'].mean().sort_index()
-    search_agg = search_df.groupby('DocumentCount')['Mean_ms'].mean().sort_index()
+# Group by DocumentCount
+setup_agg = setup_df.groupby('DocumentCount')['Mean_ms'].mean().sort_index()
+search_agg = search_df.groupby('DocumentCount')['Mean_ms'].mean().sort_index()
 
-    # Plot
+# Plot
 fig, ax = plt.subplots()
 
 ax.plot(setup_agg.index, setup_agg.values, color='black', marker='o', label='Setup')
@@ -244,8 +270,8 @@ ax.set_xscale('log')
 ax.grid(True, which="both", ls="-", alpha=0.3)
 ax.legend(loc='upper left')
 
-    plt.title('Basic Scheme Scalability')
-    plt.show()
+plt.title('Basic Scheme Scalability')
+plt.show()
 ```
 
 As shown in @fig-basic-performance, the setup time increases linearly with the number of documents. This behavior is expected because the `Setup` algorithm must process every word in every document, generating a pseudo-random label and encrypting the document identifier. The slope of this line represents the throughput of the index construction.
@@ -261,24 +287,24 @@ The Boolean Query Scheme (OXT) introduces additional cryptographic overhead to s
 #| fig-cap: "Boolean Scheme: Search Latency by Query"
 #| echo: false
 
-    df_bool = pd.read_csv("benchmark_results/SSE.Benchmark.Benchmarks.BooleanSchemeBenchmarks-report.csv")
+df_bool = pd.read_csv("benchmark_results/SSE.Benchmark.Benchmarks.BooleanSchemeBenchmarks-report.csv")
 # Filter for Search method and DocumentCount of 10000
 search_bool = df_bool[(df_bool['Method'] == 'Search') & (df_bool['DocumentCount'] == 10000)].copy()
-    search_bool['Mean_ms'] = search_bool['Mean'].apply(parse_time)
+search_bool['Mean_ms'] = search_bool['Mean'].apply(parse_time)
 
-    # Sort by time
-    search_bool = search_bool.sort_values('Mean_ms')
+# Sort by time
+search_bool = search_bool.sort_values('Mean_ms')
 
 plt.figure()
 bars = plt.barh(search_bool['searchTerms'], search_bool['Mean_ms'], color='lightgray')
-    plt.xlabel('Search Time (ms)')
+plt.xlabel('Search Time (ms)')
 plt.title('Boolean Search Latency (10,000 Documents)')
 plt.xscale('log') 
-    plt.grid(True, axis='x', alpha=0.3)
+plt.grid(True, axis='x', alpha=0.3)
 
-    # Add labels
+# Add labels
 max_val = search_bool['Mean_ms'].max()
-    for i, v in enumerate(search_bool['Mean_ms']):
+for i, v in enumerate(search_bool['Mean_ms']):
     if v > max_val / 10:
         plt.text(v, i, f"{v/1000:.3f} s  ", va='center', ha='right', fontsize=8)
     else:
@@ -322,7 +348,7 @@ ax.grid(True, which="both", ls="-", alpha=0.3)
 ax.legend(loc='upper left')
 
 plt.title('Boolean Scheme Scalability')
-    plt.show()
+plt.show()
 ```
 
 @fig-boolean-scalability shows that while setup time scales linearly (similar to the basic scheme, though with a steeper slope due to modular exponentiation), the average search time also increases with the dataset size. This is because the OXT protocol performs work proportional to the number of documents matching the least frequent keyword (the "pivot"). As the collection grows, these intermediate result sets grow, requiring more cross-tag verifications.
@@ -336,37 +362,37 @@ The Substring Scheme relies on decomposing text into $q$-grams. The choice of $q
 #| fig-cap: "Substring Scheme: Impact of q-gram size"
 #| echo: false
 
-    df_sub = pd.read_csv("benchmark_results/SSE.Benchmark.Benchmarks.SubstringSchemeBenchmarks-report.csv")
+df_sub = pd.read_csv("benchmark_results/SSE.Benchmark.Benchmarks.SubstringSchemeBenchmarks-report.csv")
 
-    # Setup
-    setup_sub = df_sub[df_sub['Method'] == 'Substring_Setup'].copy()
-    setup_sub['Mean_s'] = setup_sub['Mean'].apply(lambda x: parse_time(x) / 1000) # to seconds
+# Setup
+setup_sub = df_sub[df_sub['Method'] == 'Substring_Setup'].copy()
+setup_sub['Mean_s'] = setup_sub['Mean'].apply(lambda x: parse_time(x) / 1000) # to seconds
 
-    # Search (Average across all terms for each q)
-    search_sub = df_sub[df_sub['Method'] == 'Substring_Search'].copy()
-    search_sub['Mean_ms'] = search_sub['Mean'].apply(parse_time)
+# Search (Average across all terms for each q)
+search_sub = df_sub[df_sub['Method'] == 'Substring_Search'].copy()
+search_sub['Mean_ms'] = search_sub['Mean'].apply(parse_time)
 
-    setup_agg = setup_sub.groupby('QGramSize')['Mean_s'].mean().sort_index()
-    search_agg = search_sub.groupby('QGramSize')['Mean_ms'].mean().sort_index()
+setup_agg = setup_sub.groupby('QGramSize')['Mean_s'].mean().sort_index()
+search_agg = search_sub.groupby('QGramSize')['Mean_ms'].mean().sort_index()
 
 fig, ax1 = plt.subplots()
 
 color = 'black'
-    ax1.set_xlabel('Q-Gram Size (q)')
-    ax1.set_ylabel('Setup Time (s)', color=color)
-    ax1.plot(setup_agg.index, setup_agg.values, color=color, marker='o', label='Setup')
-    ax1.tick_params(axis='y', labelcolor=color)
-    ax1.grid(True, alpha=0.3)
+ax1.set_xlabel('Q-Gram Size (q)')
+ax1.set_ylabel('Setup Time (s)', color=color)
+ax1.plot(setup_agg.index, setup_agg.values, color=color, marker='o', label='Setup')
+ax1.tick_params(axis='y', labelcolor=color)
+ax1.grid(True, alpha=0.3)
 
-    ax2 = ax1.twinx()
+ax2 = ax1.twinx()
 color = 'black'
-    ax2.set_ylabel('Avg Search Time (ms)', color=color)
-    ax2.plot(search_agg.index, search_agg.values, color=color, marker='^', linestyle='--', label='Search')
-    ax2.tick_params(axis='y', labelcolor=color)
+ax2.set_ylabel('Avg Search Time (ms)', color=color)
+ax2.plot(search_agg.index, search_agg.values, color=color, marker='^', linestyle='--', label='Search')
+ax2.tick_params(axis='y', labelcolor=color)
 
-    plt.title('Impact of Q-Gram Size')
-    plt.xticks(setup_agg.index)
-    plt.show()
+plt.title('Impact of Q-Gram Size')
+plt.xticks(setup_agg.index)
+plt.show()
 ```
 
 Increasing $q$ (the length of the substring) generally increases the setup time and index size because the number of unique $q$-grams grows. However, @fig-substring-performance reveals an interesting trade-off for search performance.
