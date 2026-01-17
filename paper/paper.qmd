@@ -261,32 +261,71 @@ The Boolean Query Scheme (OXT) introduces additional cryptographic overhead to s
 #| fig-cap: "Boolean Scheme: Search Latency by Query"
 #| echo: false
 
-try:
     df_bool = pd.read_csv("benchmark_results/SSE.Benchmark.Benchmarks.BooleanSchemeBenchmarks-report.csv")
-    search_bool = df_bool[df_bool['Method'] == 'Search'].copy()
+# Filter for Search method and DocumentCount of 10000
+search_bool = df_bool[(df_bool['Method'] == 'Search') & (df_bool['DocumentCount'] == 10000)].copy()
     search_bool['Mean_ms'] = search_bool['Mean'].apply(parse_time)
 
     # Sort by time
     search_bool = search_bool.sort_values('Mean_ms')
 
-    plt.figure(figsize=(8, 5))
-    bars = plt.barh(search_bool['searchTerms'], search_bool['Mean_ms'], color='skyblue')
+plt.figure()
+bars = plt.barh(search_bool['searchTerms'], search_bool['Mean_ms'], color='lightgray')
     plt.xlabel('Search Time (ms)')
-    plt.title('Boolean Search Latency')
-    plt.xscale('log') # Log scale due to large variance
+plt.title('Boolean Search Latency (10,000 Documents)')
+plt.xscale('log') 
     plt.grid(True, axis='x', alpha=0.3)
 
     # Add labels
+max_val = search_bool['Mean_ms'].max()
     for i, v in enumerate(search_bool['Mean_ms']):
-        plt.text(v * 1.1, i, f"{v:.3f} ms", va='center', fontsize=8)
+    if v > max_val / 10:
+        plt.text(v, i, f"{v/1000:.3f} s  ", va='center', ha='right', fontsize=8)
+    else:
+        plt.text(v * 1.1, i, f"{v:.3f} ms", va='center', ha='left', fontsize=8)
 
-    plt.tight_layout()
-    plt.show()
-except Exception as e:
-    print(f"Error generating plot: {e}")
+plt.show()
 ```
 
-@fig-boolean-performance illustrates the cost of the OXT protocol. Single keyword searches are relatively fast, but complex conjunctive queries (e.g., "john crypto city") require significantly more time due to the modular exponentiations required for the cross-tags.
+@fig-boolean-performance illustrates the performance cost associated with the OXT protocol. Single keyword searches remain fast, but the latency increases significantly for conjunctive queries (e.g., "john crypto city").
+
+This increase is due to the heavy cryptographic operations required for intersection. For every candidate document retrieved by the first term (the pivot), the server must perform a modular exponentiation to check the "cross-tags" for the other terms. This is a CPU-intensive operation compared to the simple XOR or hashing used in the basic scheme. The results imply that while OXT provides strong security (hiding the result sets of individual non-pivot terms), it demands more computational power on the server side, particularly for queries that return many intermediate candidates.
+
+To better understand how the OXT protocol handles larger datasets, we also plotted the setup and search times against the document count.
+
+```{python}
+#| label: fig-boolean-scalability
+#| fig-cap: "Boolean Scheme: Scalability vs. Document Count"
+#| echo: false
+
+df_bool_scale = pd.read_csv("benchmark_results/SSE.Benchmark.Benchmarks.BooleanSchemeBenchmarks-report.csv")
+setup_bool_scale = df_bool_scale[df_bool_scale['Method'] == 'SchemeSetup'].copy()
+search_bool_scale = df_bool_scale[df_bool_scale['Method'] == 'Search'].copy()
+
+setup_bool_scale['Mean_ms'] = setup_bool_scale['Mean'].apply(parse_time)
+search_bool_scale['Mean_ms'] = search_bool_scale['Mean'].apply(parse_time)
+
+setup_agg_scale = setup_bool_scale.groupby('DocumentCount')['Mean_ms'].mean().sort_index()
+search_agg_scale = search_bool_scale.groupby('DocumentCount')['Mean_ms'].mean().sort_index()
+
+fig, ax = plt.subplots()
+
+ax.plot(setup_agg_scale.index, setup_agg_scale.values, color='black', marker='o', label='Setup')
+ax.plot(search_agg_scale.index, search_agg_scale.values, color='black', marker='s', linestyle='--', label='Avg Search')
+
+ax.set_xlabel('Document Count')
+ax.set_ylabel('Time (ms)')
+ax.set_yscale('log')
+ax.set_xscale('log')
+
+ax.grid(True, which="both", ls="-", alpha=0.3)
+ax.legend(loc='upper left')
+
+plt.title('Boolean Scheme Scalability')
+    plt.show()
+```
+
+@fig-boolean-scalability shows that while setup time scales linearly (similar to the basic scheme, though with a steeper slope due to modular exponentiation), the average search time also increases with the dataset size. This is because the OXT protocol performs work proportional to the number of documents matching the least frequent keyword (the "pivot"). As the collection grows, these intermediate result sets grow, requiring more cross-tag verifications.
 
 ## Substring Scheme Performance
 
@@ -297,7 +336,6 @@ The Substring Scheme relies on decomposing text into $q$-grams. The choice of $q
 #| fig-cap: "Substring Scheme: Impact of q-gram size"
 #| echo: false
 
-try:
     df_sub = pd.read_csv("benchmark_results/SSE.Benchmark.Benchmarks.SubstringSchemeBenchmarks-report.csv")
 
     # Setup
@@ -311,9 +349,9 @@ try:
     setup_agg = setup_sub.groupby('QGramSize')['Mean_s'].mean().sort_index()
     search_agg = search_sub.groupby('QGramSize')['Mean_ms'].mean().sort_index()
 
-    fig, ax1 = plt.subplots(figsize=(8, 5))
+fig, ax1 = plt.subplots()
 
-    color = 'tab:purple'
+color = 'black'
     ax1.set_xlabel('Q-Gram Size (q)')
     ax1.set_ylabel('Setup Time (s)', color=color)
     ax1.plot(setup_agg.index, setup_agg.values, color=color, marker='o', label='Setup')
@@ -321,20 +359,19 @@ try:
     ax1.grid(True, alpha=0.3)
 
     ax2 = ax1.twinx()
-    color = 'tab:orange'
+color = 'black'
     ax2.set_ylabel('Avg Search Time (ms)', color=color)
     ax2.plot(search_agg.index, search_agg.values, color=color, marker='^', linestyle='--', label='Search')
     ax2.tick_params(axis='y', labelcolor=color)
 
     plt.title('Impact of Q-Gram Size')
     plt.xticks(setup_agg.index)
-    plt.tight_layout()
     plt.show()
-except Exception as e:
-    print(f"Error generating plot: {e}")
 ```
 
-Increasing $q$ (the length of the substring) generally increases the setup time and index size because the number of unique $q$-grams grows. However, as seen in @fig-substring-performance, larger $q$ values can improve search performance for longer patterns by reducing the number of intermediate results that need to be intersected.
+Increasing $q$ (the length of the substring) generally increases the setup time and index size because the number of unique $q$-grams grows. However, @fig-substring-performance reveals an interesting trade-off for search performance.
+
+Larger $q$ values can actually *improve* search performance for longer patterns. This is because larger $q$-grams are more selective. A search for "encryption" using 3-grams involves intersecting many common fragments ("enc", "ncr", "cry"...), potentially processing many false positives. Using 5-grams ("encry", "ncryp"...) filters the documents much more aggressively, reducing the number of intersection checks the OXT protocol must perform. This suggests that for this dataset, selecting a moderate $q$ (like 4 or 5) strikes a balance between keeping the index size manageable and ensuring fast query response times.
 
 # Alternative Methods
 
