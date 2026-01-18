@@ -117,9 +117,30 @@ This protocol ensures the server learns the number of documents matching the piv
 
 ### Substring Search
 
-Substring search (finding "net" in "internet") is achieved by decomposing words into $q$-grams (substrings of length $q$). For example, "apple" with $q=3$ yields "app", "ppl", "ple". A naive approach is to index all $q$-grams. A search for a pattern is then a search for the conjunction of its constituent $q$-grams.
+Substring search (finding "net" in "internet") is achieved by decomposing words into $q$-grams (substrings of length $q$). A naive approach simply indexes all $q$-grams. A search for a pattern is then treated as a boolean AND query of its constituent $q$-grams. However, this approach ignores the **order** and **adjacency** of the grams, leading to false positives (e.g., searching for "star" might match "rats" if only the letters are checked, or "stack overflow" might match "over flow stack").
 
-However, position matters. For example, "act" and "cat" have the same letters but different meanings. To handle this, @Faber2015RichQO proposed including position information or adjacency information in the index. Our implementation uses a variation of this, indexing $q$-grams and "adjacency grams" (e.g., "app|ppl") to ensure the $q$-grams appear contiguously in the source text.
+To enforce correct ordering, we implement the method proposed by @Faber2015RichQO which indexes both individual $q$-grams and **adjacency grams**.
+
+#### Indexing Strategy
+
+For a given text and a fixed size $q$, we extract:
+
+1.  **Gram Tokens ($G$):** Every substring of length $q$.
+2.  **Adjacency Tokens ($A$):** Special tokens representing two specific grams appearing consecutively.
+
+#### Query Transformation Example
+
+Consider a search for the pattern `"test"` with $q=3$.
+
+1.  **Decomposition:** The pattern is split into 3-grams: `"tes"`, `"est"`.
+2.  **Token Generation:**
+    -   $G_1 = \text{"tes"}$
+    -   $G_2 = \text{"est"}$
+    -   $A_1 = \text{"tes|est"}$ (representing that "tes" is immediately followed by "est")
+3.  **Boolean Query:** The substring search is transformed into a conjunctive query:
+    $$ \text{Query} = G_1 \land G_2 \land A_1 $$
+
+By requiring the presence of the adjacency token $A_1$, we ensure that "tes" and "est" are not just present in the document, but present in the correct order to form "test". This logic is built directly on top of the Boolean OXT scheme described above, inheriting its security properties. While this increases the index size (adding $O(N)$ adjacency tokens), it provides precise substring search capabilities without false positives due to reordering.
 
 # Implementation
 
