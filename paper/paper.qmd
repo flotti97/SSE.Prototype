@@ -71,13 +71,36 @@ sequenceDiagram
     Client->>Client: Decrypt Results
 ```
 
-### Basic Keyword Search (Inverted Index)
+### Basic Keyword Search (SSE-1)
 
-The foundation of efficient SSE is the inverted index. To appreciate its efficiency, it is useful to contrast it with a forward index. A forward index maps each document to the list of keywords it contains. To find all documents containing a specific keyword using a forward index, the system must scan every document's keyword list. This results in a search complexity linear to the total size of the database ($O(N)$), which is inefficient for large datasets.
+The foundation of efficient SSE is the inverted index. To appreciate its efficiency, it is useful to contrast it with a forward index. A forward index maps each document to the list of keywords it contains, resulting in a search complexity linear to the total size of the database ($O(N)$). In contrast, an inverted index maps each keyword directly to a list of document identifiers, allowing for retrieval proportional to the number of results ($O(r)$).
 
-In contrast, a plaintext inverted index maps each keyword directly to a list of document identifiers. This allows for near-instant retrieval ($O(r)$, where $r$ is the number of results) regardless of the total database size. In SSE, this structure is encrypted. The scheme implemented in this project follows the "SSE-1" construction by @Curtmola2006SearchableSE and the improvements by @Cash2013HighlyScalableSS.
+The scheme implemented in this project follows the "SSE-1" construction by @Curtmola2006SearchableSE and the improvements by @Cash2013HighlyScalableSS.
 
-Instead of mapping a keyword $w$ directly to a list, we generate a label for the list using a Pseudo-Random Function (PRF): $label = F_K(w)$. The list of document identifiers is encrypted. To hide the size of the lists and the access pattern to some extent, the identifiers are often encrypted individually and stored in a dictionary mapping random labels to encrypted identifiers.
+#### Data Structure (TSet)
+
+The encrypted index, referred to as the TSet, is implemented as a dictionary. For a keyword $w$ appearing in a list of documents $D_w = (id_0, id_1, \dots, id_{r-1})$, the client generates two keys derived from the master key $K$:
+
+1.  **Label Key ($K_L$):** Used to determine the storage location (label) in the dictionary.
+2.  **Identifier Key ($K_I$):** Used to encrypt the document identifier.
+
+For each document $id_c$ at index $c$ in the list, the client computes a label $l$ and a ciphertext $e$:
+$$ l \leftarrow F(K_L, c) $$
+$$ e \leftarrow \text{Enc}(K_I, id_c) $$
+The TSet stores the mapping $TSet[l] = e$.
+
+#### Search Protocol
+
+To perform a search for keyword $w$, the protocol proceeds as follows:
+
+1.  **Token Generation:** The client computes the keys $K_L$ and $K_I$ specific to $w$ and sends them to the server as the search token.
+2.  **Server Execution:**
+    -   The server initializes a counter $c = 0$.
+    -   It repeatedly computes $l = F(K_L, c)$ and checks if $l$ exists in the TSet.
+    -   If found, it retrieves $e$, decrypts it using $K_I$ to obtain the document identifier $id_c$, and increments $c$.
+    -   The process stops when a label is not found.
+
+This protocol ensures the server learns the number of results ($r$) and the access pattern, but nothing else about the keyword or the non-retrieved data.
 
 ### Boolean Queries (OXT Protocol)
 
