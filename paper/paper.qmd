@@ -71,6 +71,15 @@ sequenceDiagram
     Client->>Client: Decrypt Results
 ```
 
+### Leakage Definitions
+
+To achieve sub-linear search time, SSE schemes intentionally reveal specific limited information to the server, referred to as *leakage*. This trade-off allows SSE to be practical for large datasets, differing from techniques like ORAM which maximize security at the cost of performance. The standard leakage profile typically comprises two components @Curtmola2006SearchableSE:
+
+1.  **Search Pattern:** This reveals whether the same keyword is being searched for multiple times. Formally, for a sequence of $q$ queries, the search pattern is a symmetric matrix indicating which queries in the sequence are identical.
+2.  **Access Pattern:** This reveals the results of the query. For a given query $w$, the server learns the set of identifiers for documents containing $w$.
+
+While the plaintext data remains encrypted, this leakage allows the server to learn statistical information, such as the frequency of keywords (Volume Pattern) or the correlation between documents. The schemes implemented in this thesis target this standard leakage profile, ensuring that no information beyond the search and access patterns is revealed.
+
 ### Basic Keyword Search (SSE-1)
 
 The foundation of efficient SSE is the inverted index. To appreciate its efficiency, it is useful to contrast it with a forward index. A forward index maps each document to the list of keywords it contains, resulting in a search complexity linear to the total size of the database ($O(N)$). In contrast, an inverted index maps each keyword directly to a list of document identifiers, allowing for retrieval proportional to the number of results ($O(r)$).
