@@ -109,7 +109,7 @@ To perform a search for keyword $w$, the protocol proceeds as follows:
     -   If found, it retrieves $e$, decrypts it using $K_I$ to obtain the document identifier $id_c$, and increments $c$.
     -   The process stops when a label is not found.
 
-This protocol ensures the server learns the number of results ($r$) and the access pattern, but nothing else about the keyword or the non-retrieved data.
+This protocol ensures that the leakage is limited strictly to the search pattern and the access pattern. The server learns the number of results ($r$) and which documents contain the keyword, but gains no information about the keyword's value or the contents of non-retrieved documents.
 
 ### Boolean Queries (OXT Protocol)
 
@@ -149,7 +149,7 @@ To perform a conjunctive search for $w_1 \land w_2$:
     
     The server checks if this resulting value exists in the **XSet**. If it does, the intersection is valid, and the server returns the encrypted identifier $e$.
 
-This protocol ensures the server learns the number of documents matching the pivot $w_1$ and which of those also match $w_2$, but it never learns the total number of documents containing $w_2$ (hiding the non-pivot result set size).
+**Leakage Profile:** The OXT protocol reveals the access pattern of the pivot keyword ($w_1$) and the result pattern of the intersection ($w_1 \land w_2$). Crucially, it hides the access pattern of the non-pivot keywords ($w_2$). The server learns the *conditional* probability: "Given document $D$ contains $w_1$, does it also contain $w_2$?" but does not learn if a document contains $w_2$ if it does not contain $w_1$.
 
 ### Substring Search
 
@@ -176,7 +176,11 @@ Consider a search for the pattern `"test"` with $q=3$.
 3.  **Boolean Query:** The substring search is transformed into a conjunctive query:
     $$ \text{Query} = G_1 \land G_2 \land A_1 $$
 
-By requiring the presence of the adjacency token $A_1$, we ensure that "tes" and "est" are not just present in the document, but present in the correct order to form "test". This logic is built directly on top of the Boolean OXT scheme described above, inheriting its security properties. While this increases the index size (adding $O(N)$ adjacency tokens), it provides precise substring search capabilities without false positives due to reordering.
+By requiring the presence of the adjacency token $A_1$, we ensure that "tes" and "est" are not just present in the document, but present in the correct order to form "test". This logic is built directly on top of the Boolean OXT scheme described above, inheriting its security properties.
+
+    **Leakage:** Since the query is executed as a boolean conjunction of tokens, the leakage corresponds to the OXT leakage on the generated $q$-grams. The server learns the access pattern of the "pivot token" (the least frequent $q$-gram or adjacency token in the pattern) and the final result set (documents containing the full substring). The frequency of other component $q$-grams remains hidden.
+
+    While this increases the index size (adding $O(N)$ adjacency tokens), it provides precise substring search capabilities without false positives due to reordering.
 
 # Implementation
 
