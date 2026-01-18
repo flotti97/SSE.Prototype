@@ -196,9 +196,21 @@ public static (byte[], EncryptedDatabase) Setup(Database<(string, string)> db)
 
     foreach (var keyword in metadata.Keys)
     {
+        // Derive keys using HMAC-SHA256
         var labelKey = GetLabelKey(masterKey, keyword);
         var identifierKey = GetIdentifierKey(masterKey, keyword);
-        // ... Encrypt identifiers and add to result ...
+        
+        int counter = 0;
+        foreach (var identifier in metadata[keyword])
+        {
+            // label = F(labelKey, counter)
+            var randomLabel = CryptoUtils.Randomize(labelKey, counter);
+            // e = Enc(identifierKey, id)
+            var encryptedIdentifier = CryptoUtils.Encrypt(identifierKey, identifier);
+            
+            result.Add((randomLabel, encryptedIdentifier));
+            counter++;
+        }
     }
     // ... Sort and build dictionary ...
 }
@@ -206,15 +218,45 @@ public static (byte[], EncryptedDatabase) Setup(Database<(string, string)> db)
 
 ### Boolean Query Scheme (OXT)
 
-The `BooleanQueryScheme` is more complex. It implements the OXT protocol. The `Setup` phase builds the `TSet` (posting lists) and the `XSet` (membership tags).
+The `BooleanQueryScheme` class implements the OXT protocol, mapping the theoretical constructs directly to C# objects. The `KeyCollection` struct holds the protocol keys:
 
-The XSet tags are constructed using modular exponentiation in a prime group. The `BuildConjunctiveMembershipTag` method illustrates this:
+-   `DocumentEncryptionKeySeed` corresponds to $K_e$.
+-   `KeywordTagKey` corresponds to $K_X$ (used for $xtag$).
+-   `DocumentIndexKey` corresponds to $K_I$ (used for $xid$).
+-   `KeywordCounterKey` corresponds to $K_Z$ (used for $z_c$).
+
+The `Setup` phase builds the `TSet` (posting lists) and the `XSet` (membership tags). The implementation explicitly calculates the blinding factors described in the method section.
+
+```csharp
+private (byte[] EncryptedDocId, byte[] InvertedCounterAppliedIndex) BuildPostingTuple(...)
+{
+    // z_c = F(K_Z, w || c)
+    var occurenceFactor = DeriveKeywordOccurrenceFactor(keys.KeywordCounterKey, keyword, counter);
+    // z_c^-1 mod (p-1)
+    var occurenceFactorInverse = CryptoUtils.ModInverse(occurenceFactorBytes, ExponentGroupOrder);
+
+    // y = xid * z_c^-1 mod (p-1)
+    var yValue = CryptoUtils.ModMultiply(crossIdentifierExp, occurenceFactorInverse, ExponentGroupOrder);
+    
+    // e = Enc(K_e, id)
+    var encryptedDocId = CryptoUtils.Encrypt(labelKey, identifier);
+    
+    return (encryptedDocId, yValue.ToByteArray(...));
+}
+```
+
+For the **XSet**, the membership tags are constructed using modular exponentiation.
 
 ```csharp
 private BigInteger BuildConjunctiveMembershipTag(string keyword, BigInteger crossIdentifierExp)
 {
-    // ... Randomize keyword ...
+    // xtag = F(K_X, w)
+    var obscuredKeyword = ...; 
+    
+    // exponent = xtag * xid
     var exponent = CryptoUtils.ModMultiply(obscuredKeyword, crossIdentifierExp, ExponentGroupOrder);
+    
+    // result = g^(xtag * xid) mod p
     return BigInteger.ModPow(
         CryptoUtils.Generator(PrimeModulus),
         exponent,
@@ -223,11 +265,18 @@ private BigInteger BuildConjunctiveMembershipTag(string keyword, BigInteger cros
 }
 ```
 
-This ensures that the server can verify membership only if it possesses the correct trapdoor information provided during the search protocol.
+This direct mapping ensures that the implementation stays faithful to the security proofs of the OXT protocol.
 
 ### Substring Query Scheme
 
-The `SubstringQueryScheme` builds upon the `BooleanQueryScheme`. It preprocesses the text by extracting $q$-grams. It pads the text with boundary characters (e.g., `#`) to distinguish prefixes and suffixes.
+The `SubstringQueryScheme` builds upon the `BooleanQueryScheme`. It preprocesses the text by extracting $q$-grams and padding the text with boundary characters (specifically `#`) to distinguish prefixes and suffixes.
+
+To enable the distinction between standard $q$-grams and adjacency constraints, we use a structured string format for tokens:
+
+-   **Gram Tokens:** `G:{q}:{gram}` (e.g., `G:3:enc`)
+-   **Adjacency Tokens:** `A:{q}:{gram1}|{gram2}` (e.g., `A:3:enc|ncr`)
+
+The `Setup` method generates these tokens and then delegates the actual encryption to the `BooleanQueryScheme`, effectively treating the complex substring problem as a standard conjunctive keyword search.
 
 ```csharp
 private static IEnumerable<string> ExtractFixedQGrams(string text, int q)
@@ -238,7 +287,7 @@ private static IEnumerable<string> ExtractFixedQGrams(string text, int q)
 }
 ```
 
-The search logic decomposes the query pattern into $q$-grams and executes a boolean AND query on the underlying OXT scheme.
+The search logic decomposes the query pattern into $q$-grams and executes a boolean AND query on the underlying OXT scheme, automatically selecting the most selective token as the pivot to optimize performance.
 
 # Users Guide
 
