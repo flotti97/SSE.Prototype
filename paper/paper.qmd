@@ -119,7 +119,7 @@ This protocol ensures the server learns the number of documents matching the piv
 
 Substring search (finding "net" in "internet") is achieved by decomposing words into $q$-grams (substrings of length $q$). For example, "apple" with $q=3$ yields "app", "ppl", "ple". A naive approach is to index all $q$-grams. A search for a pattern is then a search for the conjunction of its constituent $q$-grams.
 
-However, position matters. "act" and "cat" have the same letters but different meanings. To handle this, Faber et al. @Faber2015RichQO proposed including position information or adjacency information in the index. Our implementation uses a variation of this, indexing $q$-grams and "adjacency grams" (e.g., "app|ppl") to ensure the $q$-grams appear contiguously in the source text.
+However, position matters. For example, "act" and "cat" have the same letters but different meanings. To handle this, @Faber2015RichQO proposed including position information or adjacency information in the index. Our implementation uses a variation of this, indexing $q$-grams and "adjacency grams" (e.g., "app|ppl") to ensure the $q$-grams appear contiguously in the source text.
 
 # Implementation
 
