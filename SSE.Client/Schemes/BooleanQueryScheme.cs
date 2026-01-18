@@ -1,4 +1,4 @@
-﻿using SSE.Core;
+using SSE.Core;
 using SSE.Core.Models;
 using SSE.Cryptography;
 using SSE.Server;
@@ -77,7 +77,10 @@ namespace SSE.Client.Schemes
         public IEnumerable<string> Search(BooleanEncryptedStorageServer server, params string[] keywords)
         {
             if (keywords == null || keywords.Length == 0) yield break;
-            QueryMessage query = GenerateQuery(keywords);
+                        
+            int pivotKeywordCount = server.GetKeywordResultCount(new EncryptedValue(keywords[0], keys.SearchTagKey).Value);
+            
+            QueryMessage query = GenerateQuery(keywords, pivotKeywordCount);
             var encryptedResults = server.ProcessQuery(query);
             foreach (var res in encryptedResults)
             {
@@ -170,14 +173,13 @@ namespace SSE.Client.Schemes
         /// Generates the query message:
         /// Stag = PRF(K_T, pivotKeyword) and a sequence of conjunctive test token sets for each occurrence index.
         /// </summary>
-        private QueryMessage GenerateQuery(string[] keywords)
+        private QueryMessage GenerateQuery(string[] keywords, int limit)
         {
             var pivotKeyword = keywords[0];
             var searchTag = new EncryptedValue(pivotKeyword, keys.SearchTagKey).Value;
             var query = new QueryMessage { Stag = searchTag };
 
             int occurenceIndex = 0;
-            int limit = 2048;
 
             while (occurenceIndex < limit)
             {

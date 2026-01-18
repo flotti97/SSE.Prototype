@@ -1,4 +1,4 @@
-﻿using SSE.Core;
+using SSE.Core;
 using SSE.Core.Models;
 using SSE.Cryptography;
 using System.Numerics;
@@ -15,6 +15,12 @@ namespace SSE.Server
         public BooleanEncryptedStorageServer(BooleanEncryptedDatabase encryptedDatabase)
         {
             this.encryptedDatabase = encryptedDatabase;
+        }
+
+        public int GetKeywordResultCount(byte[] searchTag)
+        {
+            var postingList = encryptedDatabase.RetrievePostingList(Convert.ToBase64String(searchTag));
+            return postingList?.Count ?? 0;
         }
 
         public IEnumerable<byte[]> ProcessQuery(QueryMessage query)

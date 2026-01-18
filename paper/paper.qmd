@@ -354,7 +354,7 @@ plt.title('Boolean Scheme Scalability')
 plt.show()
 ```
 
-@fig-boolean-scalability shows that while setup time scales linearly (similar to the basic scheme, though with a steeper slope due to modular exponentiation), the average search time also increases with the dataset size. This is because the OXT protocol performs work proportional to the number of documents matching the least frequent keyword (the "pivot"). As the collection grows, these intermediate result sets grow, requiring more cross-tag verifications.
+@fig-boolean-scalability shows that while setup time scales linearly (similar to the basic scheme, though with a steeper slope due to modular exponentiation), the average search time also increases with the dataset size. This is because the OXT implementation dynamically generates a "cross-token" for every candidate document matching the pivot keyword. In the 20 Newsgroups dataset, keyword frequency scales linearly with the total document count. Consequently, the client must perform a number of modular exponentiations proportional to this frequency to generate the required query tokens. This confirms that the OXT protocol's computational overhead is largely determined by the size of the intermediate result sets, validating the $O(r)$ complexity.
 
 ## Substring Scheme Performance
 
