@@ -21,16 +21,11 @@ table-of-tables: true
 table-of-code: false
 
 # Abstract and acknowledgements
-abstract: |
-  This comprehensive template demonstrates all available content types and features 
-  of the JKU Typst template system. It includes examples of mathematical formulations, 
-  code blocks, figures, tables, citations, and various formatting options. The template 
-  serves as both documentation and a practical starting point for academic writing.
+abstract: | 
+  The widespread adoption of cloud computing has made data outsourcing a standard practice, yet it raises significant privacy concerns. While encryption protects data confidentiality, it typically precludes efficient searching. Searchable Symmetric Encryption (SSE) addresses this challenge by enabling search operations over encrypted data without revealing the plaintext. This thesis presents the design and implementation of an SSE prototype in .NET, capable of supporting single-keyword, boolean, and substring queries. The system implements the OXT protocol for secure conjunctive searches and a q-gram-based approach for substring pattern matching. Experimental results using the 20 Newsgroups dataset demonstrate that the prototype maintains high search efficiency with low latency, balancing the trade-off between security, functionality, and performance. The work provides a practical exploration of theoretical SSE concepts, offering a functional CLI tool and analyzing the scalability of different search schemes.
 
 zusammenfassung: |
-  Diese umfassende Vorlage demonstriert alle verfügbaren Inhaltstypen und Funktionen 
-  des JKU Typst-Template-Systems. Sie enthält Beispiele für mathematische Formulierungen, 
-  Codeblöcke, Abbildungen, Tabellen, Zitate und verschiedene Formatierungsoptionen.
+  Die weit verbreitete Nutzung von Cloud-Computing hat die Auslagerung von Daten zu einer Standardpraxis gemacht, wirft jedoch erhebliche Datenschutzbedenken auf. Während Verschlüsselung die Vertraulichkeit von Daten schützt, verhindert sie typischerweise eine effiziente Suche. Searchable Symmetric Encryption (SSE) adressiert diese Herausforderung, indem sie Suchoperationen über verschlüsselte Daten ermöglicht, ohne den Klartext preiszugeben. Diese Bachelorarbeit präsentiert das Design und die Implementierung eines SSE-Prototyps in .NET, der Einzelstichwort-, Boolesche- und Teilstring-Abfragen unterstützt. Das System implementiert das OXT-Protokoll für sichere konjunktive Suchen und einen q-Gramm-basierten Ansatz für den Teilstring-Musterabgleich. Experimentelle Ergebnisse mit dem 20 Newsgroups-Datensatz zeigen, dass der Prototyp eine hohe Sucheffizienz mit geringer Latenz beibehält und dabei ein Gleichgewicht zwischen Sicherheit, Funktionalität und Leistung schafft. Die Arbeit bietet eine praktische Untersuchung theoretischer SSE-Konzepte, stellt ein funktionales CLI-Tool bereit und analysiert die Skalierbarkeit verschiedener Suchschemata.
 
 acknowledgement: |
   Special thanks to the Typst community and the template developers who made this 
