@@ -600,6 +600,13 @@ Increasing $q$ (the length of the substring) generally increases the setup time 
 
 Larger $q$ values can actually *improve* search performance for longer patterns. This is because larger $q$-grams are more selective. A search for "encryption" using 3-grams involves intersecting many common fragments ("enc", "ncr", "cry"...), potentially processing many false positives. Using 5-grams ("encry", "ncryp"...) filters the documents much more aggressively, reducing the number of intersection checks the OXT protocol must perform. This suggests that for this dataset, selecting a moderate $q$ (like 4 or 5) strikes a balance between keeping the index size manageable and ensuring fast query response times.
 
+### Scalability Considerations
+
+Although we focused on the impact of $q$, the scalability of the Substring Scheme with respect to the dataset size follows the properties of the underlying OXT protocol.
+
+1.  **Index Size & Setup Time:** These scale linearly with the total number of characters in the dataset. Unlike the word-based Basic Scheme, where the index size depends on the number of unique words, the Substring Scheme indexes every position in the text. This results in a significantly larger index (approximately $2 \times$ the size of the plaintext for $q$-grams and adjacency tokens combined), but the growth remains linear ($O(N)$).
+2.  **Search Time:** Search latency is dominated by the number of documents containing the "pivot" $q$-gram. As the dataset grows, the frequency of any given $q$-gram (e.g., "ing") increases linearly. Consequently, the search time also scales linearly with the database size, similar to the Boolean Scheme. However, the absolute latency is higher due to the sheer volume of tokens processed.
+
 # Alternative Methods
 
 While SSE is a powerful tool, it is not the only approach to searching on encrypted data. Here we verify 2-3 alternative methods.
