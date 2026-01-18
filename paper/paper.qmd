@@ -314,7 +314,35 @@ private static IEnumerable<string> ExtractFixedQGrams(string text, int q)
 }
 ```
 
-The search logic decomposes the query pattern into $q$-grams and executes a boolean AND query on the underlying OXT scheme, automatically selecting the most selective token as the pivot to optimize performance.
+#### Query Optimization
+
+The search logic decomposes the query pattern into $q$-grams and executes a boolean AND query on the underlying OXT scheme. Crucially, it optimizes performance by carefully selecting the order of operations.
+
+1.  **Decomposition:** The pattern is split into its constituent $q$-grams and adjacency tokens.
+    -   Example: "test" ($q=3$) $\rightarrow$ `G:3:tes`, `G:3:est`, `A:3:tes|est`.
+2.  **Pivot Selection:** The OXT protocol's performance depends on the size of the result set for the first keyword (the pivot). The client consults its local metadata (the `tokenToDocIds` map) to determine the frequency of each token. It selects the token with the *fewest* matching documents as the pivot.
+3.  **Execution:** The tokens are reordered so the pivot is first, and the request is sent to the OXT server.
+
+This "selectivity estimation" ensures that the server performs the expensive cross-tag checks on the smallest possible set of candidates.
+
+```csharp
+public IEnumerable<string> Search(string pattern)
+{
+    // ... Decomposition into 'tokens' list ...
+
+    // Select pivot: Token with the lowest document count
+    var pivot = tokens.OrderBy(t => 
+        tokenToDocIds.TryGetValue(t, out var lst) ? lst.Count : int.MaxValue
+    ).First();
+
+    // Reorder: Pivot first
+    var reordered = new List<string> { pivot };
+    reordered.AddRange(tokens.Where(t => t != pivot));
+
+    // Execute Boolean Search
+    return booleanScheme.Search(server, reordered.ToArray());
+}
+```
 
 # Users Guide
 
