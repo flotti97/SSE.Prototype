@@ -156,6 +156,33 @@ The prototype is implemented in **C#** using **.NET 8**, leveraging its strong t
 
 ## Key Components
 
+### Data Structures & Serialization
+
+A critical aspect of the implementation is the efficient storage and transmission of the encrypted index.
+
+#### Index Storage
+The encrypted index is stored in memory using .NET's `Dictionary<TKey, TValue>` class, which provides average $O(1)$ lookup time.
+
+- **TSet:** Represented as `Dictionary<string, List<Tuple<byte[], byte[]>>>`. The key is the label $F(K, w)$, and the value is the list of tuples $\langle e, y \rangle$. The `string` key is a Base64 encoding of the label bytes to ensure compatibility with dictionary hashing.
+- **XSet:** Represented as a `HashSet<BigInteger>`. We use `BigInteger` from `System.Numerics` to handle the large numbers required for cryptographic security (256-bit prime field). The `HashSet` ensures that checking for the existence of a cross-tag is an $O(1)$ operation.
+
+#### Serialization
+To simulate the network communication between the Client and the Server, we define simple Data Transfer Objects (DTOs).
+
+- **Index Transfer:** The `EncryptedDatabase` object is serialized into a binary format (using `System.Text.Json` or custom binary writers in a real deployment; here we pass objects by reference for simulation).
+- **Search Tokens:** The `QueryMessage` contains the `Stag` (byte array) and a list of `ConjunctiveTokenSets`.
+
+#### Memory Management
+The current prototype loads the entire `EncryptedDatabase` into the RAM of the server process. While efficient for the experimental dataset (20 Newsgroups, approx. 20,000 documents), this approach is memory-bound. The `Dictionary` and `HashSet` structures incur overhead for object headers and pointers. As noted in the Limitations section, a production-grade system would replace these in-memory structures with a persistent Key-Value store (e.g., Redis or RocksDB) that supports efficient point lookups.
+
+### Cryptographic Primitives
+
+The `SSE.Cryptography` project encapsulates all security-critical operations, ensuring consistent usage of algorithms across the client and server.
+
+-   **PRF & MAC:** We use **HMAC-SHA256** for all pseudo-random functions ($F_K$) and key derivation.
+-   **Symmetric Encryption:** Document identifiers are encrypted using **AES-256-CBC** with a random Initialization Vector (IV) prefixed to the ciphertext.
+-   **Modular Arithmetic:** For the OXT protocol, we operate in the multiplicative group of integers modulo a prime $p$. We define a static 256-bit safe prime `Prime256Bit` and use `System.Numerics.BigInteger` for modular exponentiation ($g^x \pmod p$) and inversion ($x^{-1} \pmod {p-1}$).
+
 ### Basic Scheme
 
 The `BasicScheme` class implements the single-keyword search. The `Setup` method iterates through the keyword metadata. For each keyword, it derives two keys: a `labelKey` (to locate the list) and an `identifierKey` (to encrypt the document IDs).
