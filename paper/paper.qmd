@@ -69,7 +69,9 @@ sequenceDiagram
 
 ### Basic Keyword Search (Inverted Index)
 
-The foundation of efficient SSE is the inverted index. In a plaintext inverted index, a dictionary maps each keyword to a list of document identifiers. In SSE, this structure is encrypted. The scheme implemented in this project follows the "SSE-1" construction by Curtmola et al. @Curtmola2006SearchableSE and the improvements by Cash et al. @Cash2013HighlyScalableSS.
+The foundation of efficient SSE is the inverted index. To appreciate its efficiency, it is useful to contrast it with a forward index. A forward index maps each document to the list of keywords it contains. To find all documents containing a specific keyword using a forward index, the system must scan every document's keyword list. This results in a search complexity linear to the total size of the database ($O(N)$), which is inefficient for large datasets.
+
+In contrast, a plaintext inverted index maps each keyword directly to a list of document identifiers. This allows for near-instant retrieval ($O(r)$, where $r$ is the number of results) regardless of the total database size. In SSE, this structure is encrypted. The scheme implemented in this project follows the "SSE-1" construction by @Curtmola2006SearchableSE and the improvements by @Cash2013HighlyScalableSS.
 
 Instead of mapping a keyword $w$ directly to a list, we generate a label for the list using a Pseudo-Random Function (PRF): $label = F_K(w)$. The list of document identifiers is encrypted. To hide the size of the lists and the access pattern to some extent, the identifiers are often encrypted individually and stored in a dictionary mapping random labels to encrypted identifiers.
 
