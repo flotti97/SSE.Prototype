@@ -609,45 +609,37 @@ Although we focused on the impact of $q$, the scalability of the Substring Schem
 
 # Alternative Methods
 
-While SSE is a powerful tool, it is not the only approach to searching on encrypted data. Here we verify 2-3 alternative methods.
-
-## Deterministic Encryption (DTE)
-
-Deterministic Encryption (DTE) is a scheme where encrypting the same plaintext $m$ with the same key $k$ always yields the same ciphertext $c$. This contrasts with probabilistic encryption (like AES-CBC with a random IV), where the ciphertext changes every time.
-
-**Advantages:**
-
--   **Efficiency:** Search is extremely fast. To search for a keyword $w$, the client simply encrypts $w$ to get $c_w$ and the server performs a standard lookup for $c_w$ in the database.
--   **Simplicity:** It can be implemented using standard database technologies (e.g., SQL equality checks).
-
-**Disadvantages:**
-
--   **Security:** DTE leaks the **frequency** of keywords (if "apple" appears 10 times, the same ciphertext appears 10 times) and the **repetition pattern**. This makes it vulnerable to frequency analysis attacks, especially on datasets with low entropy (e.g., gender, age) @Bsch2014ASO. It provides a much lower security guarantee than SSE.
+While Searchable Symmetric Encryption (SSE) strikes a balance between performance and security, it is part of a broader landscape of techniques for computing on encrypted data. To understand the design choices made in this project, it is valuable to compare SSE with two alternative cryptographic paradigms that offer different trade-offs: Fully Homomorphic Encryption (FHE) and Oblivious RAM (ORAM).
 
 ## Fully Homomorphic Encryption (FHE)
 
-Fully Homomorphic Encryption (FHE) allows arbitrary computations to be performed on ciphertext without decrypting it. If $Enc(x)$ is the encryption of $x$, FHE allows computing $Enc(f(x))$ given only $Enc(x)$ and the function $f$.
+Fully Homomorphic Encryption (FHE) is often described as the "holy grail" of cryptography. It enables arbitrary computation on ciphertexts. Formally, given encryptions $E(x)$ and $E(y)$, FHE allows the computation of $E(x + y)$ and $E(x \cdot y)$ without ever decrypting the inputs. Since any computable function can be represented as a circuit of addition and multiplication gates, FHE allows a server to compute any function $f$ on encrypted data, yielding an encrypted result $E(f(x))$.
 
-**Advantages:**
+**Mechanism in Search**
 
--   **Security:** It is the "holy grail" of cryptography. It leaks almost nothing to the server, as the server blindly computes functions without seeing data or access patterns.
--   **Flexibility:** It supports any type of query, not just search.
+In the context of search, a client would send an encrypted query $E(q)$ to the server. The server would then run a boolean circuit over every encrypted document $E(d)$ in the database to evaluate whether it matches the query. The output would be an encrypted bit $E(1)$ (match) or $E(0)$ (no match), or the encrypted document itself multiplied by the match bit.
 
-**Disadvantages:**
+**Comparison with SSE**
 
--   **Performance:** Despite recent advances, FHE remains computationally prohibitive for large-scale search operations. It is orders of magnitude slower than SSE @Poh2017SearchableSE. Searching a database essentially requires the server to "touch" every encrypted record to compute the result, preventing the use of efficient indices.
+The primary advantage of FHE is security. It offers the highest possible level of data privacy because the server learns absolutely nothing—not even the access patterns or search patterns. The server essentially operates "blindly" on the data.
+
+However, this comes at a prohibitive cost in performance. Because the server cannot know which documents match, it cannot use an index (which inherently leaks access patterns). Instead, it must process every single document in the database for every query ($O(N)$ complexity). Furthermore, the cryptographic operations themselves are orders of magnitude slower than standard AES operations. This slowness is largely due to "noise" that accumulates in the ciphertext with every operation. To prevent decryption failures, this noise must be periodically reduced using an expensive procedure called *bootstrapping*. While recent years have seen significant optimizations, FHE remains impractical for searching large-scale databases compared to SSE, which enables sub-linear ($O(r)$) search times @Poh2017SearchableSE.
 
 ## Oblivious RAM (ORAM)
 
-Oblivious RAM (ORAM) is a cryptographic primitive that hides the **access pattern** of a client accessing memory. Even if the data is encrypted, the sequence of memory addresses accessed can leak information. ORAM continuously shuffles and re-encrypts data as it is accessed to obfuscate these patterns.
+Oblivious RAM (ORAM) addresses a specific leakage present in SSE: the access pattern. Even if data is encrypted, the sequence of memory addresses accessed by a program can reveal information about the data itself. For example, repeatedly accessing the same location suggests the user is interested in the same item. ORAM provides a cryptographic layer that completely obfuscates these physical memory accesses.
 
-**Advantages:**
+**Mechanism**
 
--   **Access Pattern Security:** It provides stronger security than standard SSE by hiding which documents are being accessed.
+ORAM acts as an interface between the processor (client) and the memory (server). When the client wants to access a logical block of data $A$, the ORAM protocol translates this into a sequence of read and write operations to various random-looking physical addresses. Crucially, the protocol continuously shuffles and re-encrypts data blocks as they are accessed. Accessing the same logical block twice will result in accessing completely different physical locations on the server.
 
-**Disadvantages:**
+Modern constructions, such as Path ORAM, organize the server's storage as a binary tree. The client maintains a local "position map" indicating which leaf node allows access to a specific data block. To read a block, the client reads the entire path from the root to that leaf, re-encrypts the path, and writes it back, potentially moving the block to a new random leaf. This ensures that every access appears as a random path traversal to the server.
 
--   **Overhead:** ORAM introduces significant bandwidth and computational overhead. Each logical read/write operation translates to multiple physical read/writes (often logarithmic or polylogarithmic in the dataset size). While more efficient than FHE, it is generally slower than optimized SSE schemes for simple search tasks @Curtmola2006SearchableSE.
+**Comparison with SSE**
+
+ORAM provides stronger security guarantees than standard SSE. By hiding the access pattern, it prevents statistical attacks that try to correlate query results with external knowledge (e.g., knowing that "encryption" is a frequent search term).
+
+However, this security is achieved through bandwidth and computational overhead. To hide a single access, ORAM typically requires reading and writing a logarithmic or polylogarithmic number of blocks ($O(\log N)$ or $O(\log^2 N)$). While this is asymptotically better than the linear scan required by FHE ($O(N)$), it is still significantly more expensive than the constant or near-constant overhead of SSE. Consequently, ORAM is typically reserved for scenarios where access pattern leakage is considered a critical vulnerability, whereas SSE is preferred for general-purpose cloud storage systems where performance and scalability are paramount @Curtmola2006SearchableSE @Bsch2014ASO.
 
 # Discussion
 
