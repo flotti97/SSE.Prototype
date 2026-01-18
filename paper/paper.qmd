@@ -276,7 +276,7 @@ plt.show()
 
 As shown in @fig-basic-performance, the setup time increases linearly with the number of documents. This behavior is expected because the `Setup` algorithm must process every word in every document, generating a pseudo-random label and encrypting the document identifier. The slope of this line represents the throughput of the index construction.
 
-Crucially, the search time remains extremely low (in the microsecond range) and appears nearly constant relative to the total database size. This demonstrates the efficiency of the underlying inverted index structure. Even with encryption, the lookups are effectively $O(1)$ (or proportional to the number of matching documents), meaning that the server does not need to scan the entire database to answer a query. This validates that the SSE-1 scheme maintains the performance characteristics of plaintext search while providing confidentiality.
+Crucially, the search time remains extremely low (in the microsecond range), though it exhibits a linear rise relative to the total database size. This observation is consistent with the properties of an inverted index on natural language data: as the document count ($N$) increases, the number of documents containing a specific common keyword ($r$) also grows linearly. Since the search complexity is $O(r)$ (proportional to the number of results found), the total search time increases with the result set size. This demonstrates that the server does not need to scan the entire database ($O(N)$) but only processes the matching entries, validating that the SSE-1 scheme maintains the efficiency of plaintext search while providing confidentiality.
 
 ## Boolean Scheme Performance
 
