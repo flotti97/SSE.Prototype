@@ -547,7 +547,7 @@ setup_sub['Mean_s'] = setup_sub['Mean'].apply(lambda x: parse_time(x) / 1000) # 
 
 # Search (Average across all terms for each q)
 search_sub = df_sub[df_sub['Method'] == 'Substring_Search'].copy()
-search_sub['Mean_ms'] = search_sub['Mean'].apply(parse_time)
+search_sub['Mean_ms'] = search_sub['Mean'].apply(lambda x: parse_time(x) / 1000)
 
 setup_agg = setup_sub.groupby('QGramSize')['Mean_s'].mean().sort_index()
 search_agg = search_sub.groupby('QGramSize')['Mean_ms'].mean().sort_index()
@@ -563,10 +563,12 @@ ax1.grid(True, alpha=0.3)
 
 ax2 = ax1.twinx()
 color = 'black'
-ax2.set_ylabel('Avg Search Time (ms)', color=color)
+ax2.set_ylabel('Avg Search Time (s)', color=color)
 ax2.plot(search_agg.index, search_agg.values, color=color, marker='^', linestyle='--', label='Search')
 ax2.tick_params(axis='y', labelcolor=color)
-
+lines_1, labels_1 = ax1.get_legend_handles_labels()
+lines_2, labels_2 = ax2.get_legend_handles_labels()
+ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper center')
 plt.title('Impact of Q-Gram Size')
 plt.xticks(setup_agg.index)
 plt.show()
