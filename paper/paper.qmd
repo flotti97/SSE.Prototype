@@ -45,31 +45,7 @@ An SSE scheme generally consists of four algorithms: `KeyGen`, `BuildIndex`, `Tr
 3.  `Trapdoor`: Takes the key $K$ and a keyword $w$ to generate a search token $t_w$.
 4.  `Search`: Takes the index $I$ and token $t_w$ to return the identifiers of documents containing $w$.
 
-```
-%%| label: fig-sse-sequence
-%%| fig-cap: "Sequence Diagram of the SSE Protocol"
-sequenceDiagram
-    participant Client
-    participant Server
-
-
-    Note over Client, Server: Setup
-
-    Client->>Client: Generate Key (K)
-    Client->>Client: Build Index (I) & Ciphertexts (C)
-    Client->>Server: Upload Index (I) and Encrypted Docs (C)
-        
-    Note over Client, Server: Search
-    Client->>Client: User inputs query keyword (w)
-    Client->>Client: Generate Token (t_w) using K
-    Client->>Server: Send Search Token (t_w)
-    
-
-    Server->>Server: Query Index (I) with Token (t_w)
-    Server-->>Client: Return Encrypted Identifiers
-    
-    Client->>Client: Decrypt Results
-```
+![Sequence diagram of the SSE Protocol](assets/sequence_diagram.svg){width=80%}
 
 ### Leakage Definitions
 
