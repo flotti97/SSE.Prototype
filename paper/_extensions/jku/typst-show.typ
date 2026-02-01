@@ -31,7 +31,7 @@
   acknowledgement: "$acknowledgement$",
   tocDepth: 3, //Depth of headings shown in ToC; e.g. 1 = Only h1 shown, 3 = H1 to H3 shown
   tableOfFigures: true, //Set to false if any tableOf is not needed
-  tableOfTables: true,
+  tableOfTables: false,
   tableOfCode: true,
 )
 

@@ -18,7 +18,7 @@ study: "Computer Science"
 statutory-declaration: true
 toc-depth: 3
 table-of-figures: true
-table-of-tables: true
+table-of-tables: false
 table-of-code: false
 
 # Abstract and acknowledgements
