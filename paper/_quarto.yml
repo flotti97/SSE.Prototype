@@ -52,7 +52,7 @@ ref-style:
 
 # Bibliography
 bibliography: "references.bib"
-csl-style: "ieee"
+bibliographystyle: ieee
 bibliography-font-size: 9
 
 format:

@@ -4,19 +4,19 @@
 
 ## Motivation
 
-The rapid adoption of cloud computing has fundamentally transformed how data is stored and processed. Organizations and individuals increasingly rely on third-party cloud service providers (CSPs) for data storage due to benefits such as cost reduction, high availability, and elastic scalability. Consequently, vast amounts of sensitive information, ranging from personal health records and financial transactions to proprietary corporate data, are now stored on infrastructure physically controlled by external entities @Bsch2014ASO.
+The rapid adoption of cloud computing has fundamentally transformed how data is stored and processed. Organizations and individuals increasingly rely on third-party cloud service providers (CSPs) for data storage due to benefits such as cost reduction, high availability, and elastic scalability. Consequently, vast amounts of sensitive information, ranging from personal health records and financial transactions to proprietary corporate data, are now stored on infrastructure physically controlled by external entities [@Bsch2014ASO].
 
-This outsourcing of data creates a significant trust boundary. While CSPs generally implement robust perimeter security, data stored in the cloud remains vulnerable to a variety of threats. These include internal attacks by malicious administrators, external data breaches resulting from software vulnerabilities and government surveillance. If the CSP is compromised or acts in an "honest-but-curious" manner, adhering to protocols but analyzing stored data to infer private information, confidentiality is lost @Bsch2014ASO.
+This outsourcing of data creates a significant trust boundary. While CSPs generally implement robust perimeter security, data stored in the cloud remains vulnerable to a variety of threats. These include internal attacks by malicious administrators, external data breaches resulting from software vulnerabilities and government surveillance. If the CSP is compromised or acts in an "honest-but-curious" manner, adhering to protocols but analyzing stored data to infer private information, confidentiality is lost [@Bsch2014ASO].
 
-To counter these risks, end-to-end encryption is used to protect confidential data. Via encryption at the client side before upload, data owners ensure that the CSP sees only ciphertext. However, standard encryption algorithms (e.g., AES) destroy the structure of the data required for efficient information retrieval. A standard encrypted file is effectively an unusable array of data that cannot be checked if it contains the word "urgent" without decrypting it first @Poh2017SearchableSE.
+To counter these risks, end-to-end encryption is used to protect confidential data. Via encryption at the client side before upload, data owners ensure that the CSP sees only ciphertext. However, standard encryption algorithms (e.g., AES) destroy the structure of the data required for efficient information retrieval. A standard encrypted file is effectively an unusable array of data that cannot be checked if it contains the word "urgent" without decrypting it first [@Poh2017SearchableSE].
 
-This leads to a dilemma: how to utilize the cloud for storage while maintaining the utility of the data? The trivial solution is to download the entire encrypted dataset, decrypt it locally, and perform the search on the client device. But this approach defeats the primary purpose of cloud storage. It incurs prohibitive bandwidth costs and requires the client to possess sufficient local storage and processing power to handle the entire dataset, effectively rendering the cloud a backup drive rather than a functional storage service @Poh2017SearchableSE.
+This leads to a dilemma: how to utilize the cloud for storage while maintaining the utility of the data? The trivial solution is to download the entire encrypted dataset, decrypt it locally, and perform the search on the client device. But this approach defeats the primary purpose of cloud storage. It incurs prohibitive bandwidth costs and requires the client to possess sufficient local storage and processing power to handle the entire dataset, effectively rendering the cloud a backup drive rather than a functional storage service [@Poh2017SearchableSE].
 
-Searchable Symmetric Encryption (SSE) could be the cryptographic solution to this tension between security and utility. SSE schemes allow a client to encrypt data in a specific way that enables the server to execute search queries directly on the ciphertexts. The server returns the matching encrypted documents without ever learning the plaintext content of the documents or the keywords being searched. This capability is critical for building applications where strict confidentiality and operational efficiency are required @Curtmola2006SearchableSE. 
+Searchable Symmetric Encryption (SSE) could be the cryptographic solution to this tension between security and utility. SSE schemes allow a client to encrypt data in a specific way that enables the server to execute search queries directly on the ciphertexts. The server returns the matching encrypted documents without ever learning the plaintext content of the documents or the keywords being searched. This capability is critical for building applications where strict confidentiality and operational efficiency are required [@Curtmola2006SearchableSE]. 
 
 ## Problem Statement
 
-The core problem addressed in this thesis is the design and implementation of a Searchable Symmetric Encryption (SSE) prototype that balances efficiency, functionality, and security. While basic SSE schemes for single-keyword search exist, real-world applications often require more complex query capabilities, such as boolean queries (conjunctive searches) and substring searches (finding patterns within words) @Faber2015RichQO.
+The core problem addressed in this thesis is the design and implementation of a Searchable Symmetric Encryption (SSE) prototype that balances efficiency, functionality, and security. While basic SSE schemes for single-keyword search exist, real-world applications often require more complex query capabilities, such as boolean queries (conjunctive searches) and substring searches (finding patterns within words) [@Faber2015RichQO].
 
 Implementing these advanced features securely is non-trivial. It requires sophisticated cryptographic primitives and careful data structure design to minimize "leakage"-information that the server can infer about the data or queries from the access patterns. To make these techniques production ready, the implementation must be practical, scaling reasonably well with the size of the database. This project aims to demonstrate a functional SSE system in .NET that supports single-keyword, boolean, and substring queries, providing a tangible exploration of these theoretical concepts.
 
@@ -34,9 +34,9 @@ This thesis is structured as follows:
 
 ## Theoretical Foundation
 
-Searchable Symmetric Encryption (SSE) allows a client to encrypt a document collection $D$ and outsource it to an honest-but-curious server. The server should be able to identify documents matching a query $q$ generated by the client, without learning information about the plaintext $D$ or $q$, beyond well-defined leakage @Curtmola2006SearchableSE.
+Searchable Symmetric Encryption (SSE) allows a client to encrypt a document collection $D$ and outsource it to an honest-but-curious server. The server should be able to identify documents matching a query $q$ generated by the client, without learning information about the plaintext $D$ or $q$, beyond well-defined leakage [@Curtmola2006SearchableSE].
 
-An honest-but-curious server is a standard adversary model in cryptographic protocols. In this model, the server is assumed to faithfully execute the protocol specifications (it does not modify data, drop messages, or deviate from the algorithm) but will analyze all the information it receives (ciphertexts, tokens, access patterns) to infer as much information as possible about the underlying data. This contrasts with a malicious adversary, who might actively tamper with the protocol to extract secrets or disrupt the service @Bsch2014ASO.
+An honest-but-curious server is a standard adversary model in cryptographic protocols. In this model, the server is assumed to faithfully execute the protocol specifications (it does not modify data, drop messages, or deviate from the algorithm) but will analyze all the information it receives (ciphertexts, tokens, access patterns) to infer as much information as possible about the underlying data. This contrasts with a malicious adversary, who might actively tamper with the protocol to extract secrets or disrupt the service [@Bsch2014ASO].
 
 An SSE scheme generally consists of four algorithms: `KeyGen`, `BuildIndex`, `Trapdoor`, and `Search`.
 
@@ -49,7 +49,7 @@ An SSE scheme generally consists of four algorithms: `KeyGen`, `BuildIndex`, `Tr
 
 ### Leakage Definitions
 
-To achieve sub-linear search time, SSE schemes intentionally reveal specific limited information to the server, referred to as *leakage*. This trade-off allows SSE to be practical for large datasets, differing from techniques like ORAM which maximize security at the cost of performance. The standard leakage profile typically comprises two components @Curtmola2006SearchableSE:
+To achieve sub-linear search time, SSE schemes intentionally reveal specific limited information to the server, referred to as *leakage*. This trade-off allows SSE to be practical for large datasets, differing from techniques like ORAM which maximize security at the cost of performance. The standard leakage profile typically comprises two components [@Curtmola2006SearchableSE]:
 
 1.  **Search Pattern:** This reveals whether the same keyword is being searched for multiple times. Formally, for a sequence of $q$ queries, the search pattern is a symmetric matrix indicating which queries in the sequence are identical.
 2.  **Access Pattern:** This reveals the results of the query. For a given query $w$, the server learns the set of identifiers for documents containing $w$.
@@ -58,9 +58,9 @@ While the plaintext data remains encrypted, this leakage allows the server to le
 
 ### Basic Keyword Search (SSE-1)
 
-The foundation of efficient SSE is the inverted index. To appreciate its efficiency, it is useful to contrast it with a forward index. A forward index maps each document to the list of keywords it contains, resulting in a search complexity linear to the total size of the database ($O(N)$). In contrast, an inverted index maps each keyword directly to a list of document identifiers, allowing for retrieval proportional to the number of results ($O(r)$) @Curtmola2006SearchableSE.
+The foundation of efficient SSE is the inverted index. To appreciate its efficiency, it is useful to contrast it with a forward index. A forward index maps each document to the list of keywords it contains, resulting in a search complexity linear to the total size of the database ($O(N)$). In contrast, an inverted index maps each keyword directly to a list of document identifiers, allowing for retrieval proportional to the number of results ($O(r)$) [@Curtmola2006SearchableSE].
 
-The scheme implemented in this project follows the "SSE-1" construction by @Curtmola2006SearchableSE and the improvements by @Cash2013HighlyScalableSS.
+The scheme implemented in this project follows the "SSE-1" construction by [@Curtmola2006SearchableSE] and the improvements by [@Cash2013HighlyScalableSS].
 
 #### Data Structure (TSet)
 
@@ -89,7 +89,7 @@ This protocol ensures that the leakage is limited strictly to the search pattern
 
 ### Boolean Queries (OXT Protocol)
 
-For conjunctive queries (e.g., "search for documents containing $w_1 \land w_2 \dots \land w_n$"), simply intersecting the result sets of single-keyword searches leaks the document lists for all keywords. To avoid this, our prototype implements the **Oblivious Cross-Tags (OXT)** protocol proposed by @Cash2013HighlyScalableSS.
+For conjunctive queries (e.g., "search for documents containing $w_1 \land w_2 \dots \land w_n$"), simply intersecting the result sets of single-keyword searches leaks the document lists for all keywords. To avoid this, our prototype implements the **Oblivious Cross-Tags (OXT)** protocol proposed by [@Cash2013HighlyScalableSS].
 
 OXT minimizes leakage by selecting the least frequent keyword as the "pivot" ($w_1$). The server retrieves candidate documents for $w_1$ and then obliviously checks if these candidates also contain the other keywords ($w_2, \dots, w_n$) using a precomputed index called the XSet.
 
@@ -129,9 +129,9 @@ To perform a conjunctive search for $w_1 \land w_2$:
 
 ### Substring Search
 
-Substring search (finding "net" in "internet") is achieved by decomposing words into $q$-grams (substrings of length $q$). A naive approach simply indexes all $q$-grams. A search for a pattern is then treated as a boolean AND query of its constituent $q$-grams @Faber2015RichQO. However, this approach ignores the **order** and **adjacency** of the grams, leading to false positives (e.g., searching for "star" might match "rats" if only the letters are checked, or "stack overflow" might match "over flow stack").
+Substring search (finding "net" in "internet") is achieved by decomposing words into $q$-grams (substrings of length $q$). A naive approach simply indexes all $q$-grams. A search for a pattern is then treated as a boolean AND query of its constituent $q$-grams [@Faber2015RichQO]. However, this approach ignores the **order** and **adjacency** of the grams, leading to false positives (e.g., searching for "star" might match "rats" if only the letters are checked, or "stack overflow" might match "over flow stack").
 
-To enforce correct ordering, we implement the method proposed by @Faber2015RichQO which indexes both individual $q$-grams and **adjacency grams**.
+To enforce correct ordering, we implement the method proposed by [@Faber2015RichQO] which indexes both individual $q$-grams and **adjacency grams**.
 
 #### Indexing Strategy
 
@@ -627,7 +627,7 @@ While Searchable Symmetric Encryption (SSE) strikes a balance between performanc
 
 ## Fully Homomorphic Encryption (FHE)
 
-Fully Homomorphic Encryption (FHE) is often described as the "holy grail" of cryptography. It enables arbitrary computation on ciphertexts. Formally, given encryptions $E(x)$ and $E(y)$, FHE allows the computation of $E(x + y)$ and $E(x \cdot y)$ without ever decrypting the inputs. Since any computable function can be represented as a circuit of addition and multiplication gates, FHE allows a server to compute any function $f$ on encrypted data, yielding an encrypted result $E(f(x))$ @Bsch2014ASO.
+Fully Homomorphic Encryption (FHE) is often described as the "holy grail" of cryptography. It enables arbitrary computation on ciphertexts. Formally, given encryptions $E(x)$ and $E(y)$, FHE allows the computation of $E(x + y)$ and $E(x \cdot y)$ without ever decrypting the inputs. Since any computable function can be represented as a circuit of addition and multiplication gates, FHE allows a server to compute any function $f$ on encrypted data, yielding an encrypted result $E(f(x))$ [@Bsch2014ASO].
 
 **Mechanism in Search**
 
@@ -637,11 +637,11 @@ In the context of search, a client would send an encrypted query $E(q)$ to the s
 
 The primary advantage of FHE is security. It offers the highest possible level of data privacy because the server learns absolutely nothing—not even the access patterns or search patterns. The server essentially operates "blindly" on the data.
 
-However, this comes at a prohibitive cost in performance. Because the server cannot know which documents match, it cannot use an index (which inherently leaks access patterns). Instead, it must process every single document in the database for every query ($O(N)$ complexity). Furthermore, the cryptographic operations themselves are orders of magnitude slower than standard AES operations. This slowness is largely due to "noise" that accumulates in the ciphertext with every operation. To prevent decryption failures, this noise must be periodically reduced using an expensive procedure called *bootstrapping*. While recent years have seen significant optimizations, FHE remains impractical for searching large-scale databases compared to SSE, which enables sub-linear ($O(r)$) search times @Poh2017SearchableSE.
+However, this comes at a prohibitive cost in performance. Because the server cannot know which documents match, it cannot use an index (which inherently leaks access patterns). Instead, it must process every single document in the database for every query ($O(N)$ complexity). Furthermore, the cryptographic operations themselves are orders of magnitude slower than standard AES operations. This slowness is largely due to "noise" that accumulates in the ciphertext with every operation. To prevent decryption failures, this noise must be periodically reduced using an expensive procedure called *bootstrapping*. While recent years have seen significant optimizations, FHE remains impractical for searching large-scale databases compared to SSE, which enables sub-linear ($O(r)$) search times [@Poh2017SearchableSE].
 
 ## Oblivious RAM (ORAM)
 
-Oblivious RAM (ORAM) addresses a specific leakage present in SSE: the access pattern. Even if data is encrypted, the sequence of memory addresses accessed by a program can reveal information about the data itself. For example, repeatedly accessing the same location suggests the user is interested in the same item. ORAM provides a cryptographic layer that completely obfuscates these physical memory accesses @Poh2017SearchableSE.
+Oblivious RAM (ORAM) addresses a specific leakage present in SSE: the access pattern. Even if data is encrypted, the sequence of memory addresses accessed by a program can reveal information about the data itself. For example, repeatedly accessing the same location suggests the user is interested in the same item. ORAM provides a cryptographic layer that completely obfuscates these physical memory accesses [@Poh2017SearchableSE].
 
 **Mechanism**
 
@@ -653,7 +653,7 @@ Modern constructions, such as Path ORAM, organize the server's storage as a bina
 
 ORAM provides stronger security guarantees than standard SSE. By hiding the access pattern, it prevents statistical attacks that try to correlate query results with external knowledge (e.g., knowing that "encryption" is a frequent search term).
 
-However, this security is achieved through bandwidth and computational overhead. To hide a single access, ORAM typically requires reading and writing a logarithmic or polylogarithmic number of blocks ($O(\log N)$ or $O(\log^2 N)$). While this is asymptotically better than the linear scan required by FHE ($O(N)$), it is still significantly more expensive than the constant or near-constant overhead of SSE. Consequently, ORAM is typically reserved for scenarios where access pattern leakage is considered a critical vulnerability, whereas SSE is preferred for general-purpose cloud storage systems where performance and scalability are paramount @Curtmola2006SearchableSE @Bsch2014ASO.
+However, this security is achieved through bandwidth and computational overhead. To hide a single access, ORAM typically requires reading and writing a logarithmic or polylogarithmic number of blocks ($O(\log N)$ or $O(\log^2 N)$). While this is asymptotically better than the linear scan required by FHE ($O(N)$), it is still significantly more expensive than the constant or near-constant overhead of SSE. Consequently, ORAM is typically reserved for scenarios where access pattern leakage is considered a critical vulnerability, whereas SSE is preferred for general-purpose cloud storage systems where performance and scalability are paramount [@Curtmola2006SearchableSE; @Bsch2014ASO].
 
 # Discussion
 
@@ -665,10 +665,10 @@ This thesis presented the design and implementation of a Searchable Symmetric En
 
 Despite the successful implementation, the current prototype has several limitations:
 
-1.  **Static Data:** The current implementation is static. Once the index is built, new documents cannot be added without rebuilding the entire index. Dynamic SSE (DSSE) schemes exist @Cash2014DynamicSE @Hahn2014SearchableEW but were outside the scope of this project.
+1.  **Static Data:** The current implementation is static. Once the index is built, new documents cannot be added without rebuilding the entire index. Dynamic SSE (DSSE) schemes exist [@Cash2014DynamicSE; @Hahn2014SearchableEW] but were outside the scope of this project.
 2.  **Memory Usage:** The prototype loads the entire index into memory. For very large datasets, a disk-based implementation (e.g., using a key-value store like RocksDB or Redis) would be necessary.
 3.  **Leakage:** As with all efficient SSE schemes, the prototype leaks the **search pattern** (whether the same query is repeated) and the **access pattern** (which documents match the query). While OXT minimizes leakage for boolean queries, it does not eliminate it.
 
 ## Outlook
 
-Future work could focus on addressing these limitations. Implementing **Dynamic SSE** would allow for real-time updates to the encrypted database, making the system suitable for active file systems. Integrating a **persistent storage backend** would enable the system to scale to millions of documents. Finally, exploring **Verifiable SSE** @Bost2016VerifiableDS would ensure that a malicious server cannot return incomplete or incorrect results without detection.
+Future work could focus on addressing these limitations. Implementing **Dynamic SSE** would allow for real-time updates to the encrypted database, making the system suitable for active file systems. Integrating a **persistent storage backend** would enable the system to scale to millions of documents. Finally, exploring **Verifiable SSE** [@Bost2016VerifiableDS] would ensure that a malicious server cannot return incomplete or incorrect results without detection.
