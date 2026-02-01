@@ -209,7 +209,7 @@
   tableOfContents: true,
   tocDepth: 3,
   tableOfFigures: true,
-  tableOfTables: true,
+  tableOfTables: false,
   tableOfCode: true,
   listDefinitions: false,
   zusammenfassung: [],
@@ -370,7 +370,7 @@
   if tableOfFigures {
     outline(
       target: figure.where(kind: "quarto-float-fig"),
-      title: "Images")
+      title: "Figures")
   }
 
   if tableOfTables {
