@@ -2,7 +2,7 @@
   title: $if(title)$ [$title$] $else$ "<Your Title>" $endif$,
   submitters: 
     $if(submitters)$ 
-      ($for(submitters)$"$submitters$"$sep$, $endfor$,) 
+      ("$submitters.name$$if(submitters.matriculation-number)$ $submitters.matriculation-number$ $endif$",) 
     $else$ 
       ("<Your name>",) 
     $endif$,

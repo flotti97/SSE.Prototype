@@ -3,7 +3,8 @@ project:
 
 title: "Symmetric Searchable Encryption"
 submitters:
-  - "Florian Schwarzmayr"
+  name: Florian Schwarzmayr
+  matriculation-number: k12205656
 department: "Institute of Computational Perception"
 supervisors:
   - "Prof. Dr. Josef Scharinger"
