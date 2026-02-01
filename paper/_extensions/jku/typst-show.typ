@@ -24,7 +24,7 @@
 #show "OTMEvolver": text(font: font.sans, hyphenate: false)[OTM#super([Evolver])]
 
 #show: preface.with(
-  statutoryDeclaration: true,
+  statutoryDeclaration: false,
   // If you do not need abstract, zusammenfassung or ack, just comment them out or remove line
   abstract: "$abstract$",
   zusammenfassung: "$zusammenfassung$",
