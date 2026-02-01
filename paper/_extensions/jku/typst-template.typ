@@ -382,8 +382,8 @@
 
   if tableOfCode {
     outline(
-      target: figure.where(kind: raw),
-      title: "Code"
+      target: figure.where(kind: "quarto-float-lst"),
+      title: "Listings"
     )
   }
 

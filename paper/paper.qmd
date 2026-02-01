@@ -203,6 +203,8 @@ The `SSE.Cryptography` project encapsulates all security-critical operations, en
 
 The `BasicScheme` class implements the single-keyword search. The `Setup` method iterates through the keyword metadata. For each keyword, it derives two keys: a `labelKey` (to locate the list) and an `identifierKey` (to encrypt the document IDs).
 
+::: {#lst-basicscheme-setup}
+
 ```csharp
 public static (byte[], EncryptedDatabase) Setup(Database<(string, string)> db)
 {
@@ -232,6 +234,10 @@ public static (byte[], EncryptedDatabase) Setup(Database<(string, string)> db)
 }
 ```
 
+Setup method of BasicScheme class
+
+:::
+
 ### Boolean Query Scheme (OXT)
 
 The `BooleanQueryScheme` class implements the OXT protocol, mapping the theoretical constructs directly to C# objects. The `KeyCollection` struct holds the protocol keys:
@@ -242,6 +248,8 @@ The `BooleanQueryScheme` class implements the OXT protocol, mapping the theoreti
 -   `KeywordCounterKey` corresponds to $K_Z$ (used for $z_c$).
 
 The `Setup` phase builds the `TSet` (posting lists) and the `XSet` (membership tags). The implementation explicitly calculates the blinding factors described in the method section.
+
+::: {#lst-buildpostingtuple}
 
 ```csharp
 private (byte[] EncryptedDocId, byte[] InvertedCounterAppliedIndex) BuildPostingTuple(...)
@@ -261,7 +269,13 @@ private (byte[] EncryptedDocId, byte[] InvertedCounterAppliedIndex) BuildPosting
 }
 ```
 
+Building posting tuple with blinding factors
+
+:::
+
 For the **XSet**, the membership tags are constructed using modular exponentiation.
+
+::: {#lst-buildconjunctivemembershiptag}
 
 ```csharp
 private BigInteger BuildConjunctiveMembershipTag(string keyword, BigInteger crossIdentifierExp)
@@ -281,6 +295,10 @@ private BigInteger BuildConjunctiveMembershipTag(string keyword, BigInteger cros
 }
 ```
 
+Construction of XSet membership tags using modular exponentiation
+
+:::
+
 This direct mapping ensures that the implementation stays faithful to the security proofs of the OXT protocol.
 
 ### Substring Query Scheme
@@ -294,6 +312,8 @@ To enable the distinction between standard $q$-grams and adjacency constraints, 
 
 The `Setup` method generates these tokens and then delegates the actual encryption to the `BooleanQueryScheme`, effectively treating the complex substring problem as a standard conjunctive keyword search.
 
+::: {#lst-extractfixedqgrams}
+
 ```csharp
 private static IEnumerable<string> ExtractFixedQGrams(string text, int q)
 {
@@ -302,6 +322,10 @@ private static IEnumerable<string> ExtractFixedQGrams(string text, int q)
         yield return text.Substring(i, q);
 }
 ```
+
+Extracting fixed-size q-grams from text
+
+:::
 
 #### Query Optimization
 
@@ -313,6 +337,8 @@ The search logic decomposes the query pattern into $q$-grams and executes a bool
 3.  **Execution:** The tokens are reordered so the pivot is first, and the request is sent to the OXT server.
 
 This "selectivity estimation" ensures that the server performs the expensive cross-tag checks on the smallest possible set of candidates.
+
+::: {#lst-substring-pivot}
 
 ```csharp
 public IEnumerable<string> Search(string pattern)
@@ -333,6 +359,10 @@ public IEnumerable<string> Search(string pattern)
 }
 ```
 
+Query pivot selection and execution of Substring Search
+
+:::
+
 # Users Guide
 
 The prototype includes a Console-based application (`SSE.CLI`) that demonstrates the functionality of the implemented schemes.
@@ -347,6 +377,8 @@ The prototype includes a Console-based application (`SSE.CLI`) that demonstrates
 
 Upon launching, the main menu is displayed:
 
+::: {#lst-cli-mainmenu}
+
 ```text
 ================================================================================
  SSE Prototype - Select a Scheme
@@ -358,6 +390,10 @@ Upon launching, the main menu is displayed:
 
 Select an option:
 ```
+
+Main menu of the CLI application
+
+:::
 
 ### 1. Selecting a Scheme
 
