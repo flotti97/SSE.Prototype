@@ -32,24 +32,6 @@ acknowledgement: |
   Special thanks to the Typst community and the template developers who made this 
   comprehensive documentation possible.
 
-# Abbreviations
-abbrevs:
-  - key: ML
-    value: Machine Learning
-  - key: AI
-    value: Artificial Intelligence
-  - key: API
-    value: Application Programming Interface
-  - key: GPU
-    value: Graphics Processing Unit
-  - key: CPU
-    value: Central Processing Unit
-  - key: RAM
-    value: Random Access Memory
-  - key: SQL
-    value: Structured Query Language
-  - key: HTTP
-    value: HyperText Transfer Protocol
 
 # Styling options
 otm-evolver: true

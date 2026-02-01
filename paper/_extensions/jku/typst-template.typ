@@ -211,7 +211,7 @@
   tableOfFigures: true,
   tableOfTables: true,
   tableOfCode: true,
-  listDefinitions: true,
+  listDefinitions: false,
   zusammenfassung: [],
   abstract: [],
   acknowledgement: [],
