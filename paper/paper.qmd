@@ -63,11 +63,11 @@ While the plaintext data remains encrypted, this leakage allows the server to le
 
 The foundation of efficient SSE is the inverted index. To appreciate its efficiency, it is useful to contrast it with a forward index. A forward index maps each document to the list of keywords it contains, resulting in a search complexity linear to the total size of the database ($O(N)$). In contrast, an inverted index maps each keyword directly to a list of document identifiers, allowing for retrieval proportional to the number of results ($O(r)$) [@Curtmola2006SearchableSE].
 
-The scheme implemented in this project follows the "SSE-1" construction by [@Curtmola2006SearchableSE] and the improvements by [@Cash2013HighlyScalableSS].
+The scheme implemented in this project follows the "SSE-1" construction by [@Curtmola2006SearchableSE] and the improvements by [@cash2013highly].
 
 #### Data Structure (TSet)
 
-The encrypted index, referred to as the TSet, is implemented as a dictionary [@Cash2013HighlyScalableSS]. For a keyword $w$ appearing in a list of documents $D_w = (id_0, id_1, \dots, id_{r-1})$, the client generates two keys derived from the master key $K$:
+The encrypted index, referred to as the TSet, is implemented as a dictionary [@cash2013highly]. For a keyword $w$ appearing in a list of documents $D_w = (id_0, id_1, \dots, id_{r-1})$, the client generates two keys derived from the master key $K$:
 
 1.  **Label Key ($K_L$):** Used to determine the storage location (label) in the dictionary.
 2.  **Identifier Key ($K_I$):** Used to encrypt the document identifier.
@@ -79,7 +79,7 @@ where $F$ is a pseudo-random function (PRF) used to generate unpredictable label
 
 #### Search Protocol
 
-To perform a search for keyword $w$, the protocol proceeds as follows [@Cash2013HighlyScalableSS]:
+To perform a search for keyword $w$, the protocol proceeds as follows [@cash2013highly]:
 
 1.  **Token Generation:** The client computes the keys $K_L$ and $K_I$ specific to $w$ and sends them to the server as the search token.
 2.  **Server Execution:**
@@ -92,15 +92,15 @@ This protocol ensures that the leakage is limited strictly to the search pattern
 
 ### Boolean Queries (OXT Protocol) {#sec-oxt}
 
-For conjunctive queries (e.g., "search for documents containing $w_1 \land w_2 \dots \land w_n$"), simply intersecting the result sets of single-keyword searches leaks the document lists for all keywords. To avoid this, our prototype implements the **Oblivious Cross-Tags (OXT)** protocol proposed by [@Cash2013HighlyScalableSS].
+For conjunctive queries (e.g., "search for documents containing $w_1 \land w_2 \dots \land w_n$"), simply intersecting the result sets of single-keyword searches leaks the document lists for all keywords. To avoid this, our prototype implements the **Oblivious Cross-Tags (OXT)** protocol proposed by [@cash2013highly].
 
 OXT minimizes leakage by selecting the least frequent keyword as the "pivot" ($w_1$). The server retrieves candidate documents for $w_1$ and then obliviously checks if these candidates also contain the other keywords ($w_2, \dots, w_n$) using a precomputed index called the XSet.
 
-The scheme relies on computations in a cyclic group $\mathbb{G}$ of prime order $p$ with generator $g$. In practice, $p$ should be a large safe prime (a prime of the form $p = 2q + 1$ where $q$ is also prime) to ensure the discrete logarithm problem remains computationally hard [@Cash2013HighlyScalableSS]. We use $\mathbb{Z}_p^*$ as the underlying group with modular arithmetic operations.
+The scheme relies on computations in a cyclic group $\mathbb{G}$ of prime order $p$ with generator $g$. In practice, $p$ should be a large safe prime (a prime of the form $p = 2q + 1$ where $q$ is also prime) to ensure the discrete logarithm problem remains computationally hard [@cash2013highly]. We use $\mathbb{Z}_p^*$ as the underlying group with modular arithmetic operations.
 
 #### Data Structures {#sec-oxt-data}
 
-The server stores two main data structures [@Cash2013HighlyScalableSS]:
+The server stores two main data structures [@cash2013highly]:
 
 1.  **TSet (Tuple Set):** Contains the inverted list for the pivot keyword. For a keyword $w$ and its $c$-th matching document with identifier $id$, the TSet stores a tuple:
     $$ T[w, c] = \langle e, y \rangle $$
@@ -116,7 +116,7 @@ The server stores two main data structures [@Cash2013HighlyScalableSS]:
 
 #### Search Protocol {#sec-oxt-search}
 
-To perform a conjunctive search for $w_1 \land w_2$ [@Cash2013HighlyScalableSS]:
+To perform a conjunctive search for $w_1 \land w_2$ [@cash2013highly]:
 
 1.  **Token Generation:** The client sends a search token for the pivot $w_1$ to the server. The server retrieves the $r$ tuples from the TSet.
 2.  **XToken Calculation:** For each retrieved tuple (indexed by $c \in [1, r]$), the client computes a "cross-token" (xtoken) for the secondary keyword $w_2$:
@@ -128,7 +128,7 @@ To perform a conjunctive search for $w_1 \land w_2$ [@Cash2013HighlyScalableSS]:
     
     The server checks if this resulting value exists in the **XSet**. If it does, the intersection is valid, and the server returns the encrypted identifier $e$.
 
-**Leakage Profile:** The OXT protocol reveals the access pattern of the pivot keyword ($w_1$) and the result pattern of the intersection ($w_1 \land w_2$) [@Cash2013HighlyScalableSS]. Crucially, it hides the access pattern of the non-pivot keywords ($w_2$). The server learns the *conditional* probability: "Given document $D$ contains $w_1$, does it also contain $w_2$?" but does not learn if a document contains $w_2$ if it does not contain $w_1$.
+**Leakage Profile:** The OXT protocol reveals the access pattern of the pivot keyword ($w_1$) and the result pattern of the intersection ($w_1 \land w_2$) [@cash2013highly]. Crucially, it hides the access pattern of the non-pivot keywords ($w_2$). The server learns the *conditional* probability: "Given document $D$ contains $w_1$, does it also contain $w_2$?" but does not learn if a document contains $w_2$ if it does not contain $w_1$.
 
 ### Substring Search
 
@@ -157,7 +157,7 @@ Consider a search for the pattern `"test"` with $q=3$.
 
 By requiring the presence of the adjacency token $A_1$, we ensure that "tes" and "est" are not just present in the document, but present in the correct order to form "test" [@Faber2015RichQO]. This logic is built directly on top of the Boolean OXT scheme described in @sec-oxt, inheriting its security properties.
 
-**Leakage:** Since the query is executed as a boolean conjunction of tokens, the leakage corresponds to the OXT leakage on the generated $q$-grams [@Cash2013HighlyScalableSS; @Faber2015RichQO]. The server learns the access pattern of the "pivot token" (the least frequent $q$-gram or adjacency token in the pattern) and the final result set (documents containing the full substring). The frequency of other component $q$-grams remains hidden.
+**Leakage:** Since the query is executed as a boolean conjunction of tokens, the leakage corresponds to the OXT leakage on the generated $q$-grams [@cash2013highly; @Faber2015RichQO]. The server learns the access pattern of the "pivot token" (the least frequent $q$-gram or adjacency token in the pattern) and the final result set (documents containing the full substring). The frequency of other component $q$-grams remains hidden.
 
 While this increases the index size (adding $O(N)$ adjacency tokens), it provides precise substring search capabilities without false positives due to reordering.
 
