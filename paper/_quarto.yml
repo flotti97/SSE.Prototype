@@ -28,11 +28,6 @@ abstract: |
 zusammenfassung: |
   Die weit verbreitete Nutzung von Cloud-Computing hat die Auslagerung von Daten zu einer Standardpraxis gemacht, wirft jedoch erhebliche Datenschutzbedenken auf. Während Verschlüsselung die Vertraulichkeit von Daten schützt, verhindert sie typischerweise eine effiziente Suche. Searchable Symmetric Encryption (SSE) adressiert diese Herausforderung, indem sie Suchoperationen über verschlüsselte Daten ermöglicht, ohne den Klartext preiszugeben. Diese Bachelorarbeit präsentiert das Design und die Implementierung eines SSE-Prototyps in .NET, der Einzelstichwort-, Boolesche- und Teilstring-Abfragen unterstützt. Das System implementiert das OXT-Protokoll für sichere konjunktive Suchen und einen q-Gramm-basierten Ansatz für den Teilstring-Musterabgleich. Experimentelle Ergebnisse mit dem 20 Newsgroups-Datensatz zeigen, dass der Prototyp eine hohe Sucheffizienz mit geringer Latenz beibehält und dabei ein Gleichgewicht zwischen Sicherheit, Funktionalität und Leistung schafft. Die Arbeit bietet eine praktische Untersuchung theoretischer SSE-Konzepte, stellt ein funktionales CLI-Tool bereit und analysiert die Skalierbarkeit verschiedener Suchschemata.
 
-acknowledgement: |
-  Special thanks to the Typst community and the template developers who made this 
-  comprehensive documentation possible.
-
-
 # Styling options
 otm-evolver: true
 heading-depth: 3

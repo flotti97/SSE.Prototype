@@ -342,7 +342,7 @@
     text(size: body-size)[#zusammenfassung]
   }
 
-  if acknowledgement != [] {
+  if acknowledgement != "" {
     pagebreak()
     heading(outlined: false)[Acknowledgement]
     text(size: body-size)[#acknowledgement]
