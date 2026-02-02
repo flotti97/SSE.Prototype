@@ -39,14 +39,16 @@ Searchable Symmetric Encryption (SSE) allows a client to encrypt a document coll
 
 An honest-but-curious server is a standard adversary model in cryptographic protocols. In this model, the server is assumed to faithfully execute the protocol specifications (it does not modify data, drop messages, or deviate from the algorithm) but will analyze all the information it receives (ciphertexts, tokens, access patterns) to infer as much information as possible about the underlying data. This contrasts with a malicious adversary, who might actively tamper with the protocol to extract secrets or disrupt the service [@Bsch2014ASO].
 
-An SSE scheme generally consists of four algorithms: `KeyGen`, `BuildIndex`, `Trapdoor`, and `Search`.
+An SSE scheme generally consists of four algorithms: `KeyGen`, `BuildIndex`, `Trapdoor`, and `Search` [@Curtmola2006SearchableSE].
 
 1.  `KeyGen`: Generates a secret key $K$.
 2.  `BuildIndex`: Takes the database $D$ and key $K$ to produce an encrypted index $I$ and a set of encrypted documents $C$.
 3.  `Trapdoor`: Takes the key $K$ and a keyword $w$ to generate a search token $t_w$.
 4.  `Search`: Takes the index $I$ and token $t_w$ to return the identifiers of documents containing $w$.
 
-![Sequence diagram of the SSE Protocol](assets/sequence_diagram.svg){width=80%}
+The typical interaction flow between client and server is illustrated in the sequence diagram below, based on the protocol structure from [@Curtmola2006SearchableSE].
+
+![Sequence diagram of the SSE Protocol inspired by [@Curtmola2006SearchableSE]](assets/sequence_diagram.svg ){width=80%}
 
 ### Leakage Definitions
 
@@ -55,7 +57,7 @@ To achieve sub-linear search time, SSE schemes intentionally reveal specific lim
 1.  **Search Pattern:** This reveals whether the same keyword is being searched for multiple times. Formally, for a sequence of $q$ queries, the search pattern is a symmetric matrix indicating which queries in the sequence are identical.
 2.  **Access Pattern:** This reveals the results of the query. For a given query $w$, the server learns the set of identifiers for documents containing $w$.
 
-While the plaintext data remains encrypted, this leakage allows the server to learn statistical information, such as the frequency of keywords (Volume Pattern) or the correlation between documents. The schemes implemented in this thesis target this standard leakage profile, ensuring that no information beyond the search and access patterns is revealed.
+While the plaintext data remains encrypted, this leakage allows the server to learn statistical information, such as the frequency of keywords or the correlation between documents. The schemes implemented in this thesis target this standard leakage profile, ensuring that no information beyond the search and access patterns is revealed.
 
 ### Basic Keyword Search (SSE-1)
 
@@ -65,7 +67,7 @@ The scheme implemented in this project follows the "SSE-1" construction by [@Cur
 
 #### Data Structure (TSet)
 
-The encrypted index, referred to as the TSet, is implemented as a dictionary. For a keyword $w$ appearing in a list of documents $D_w = (id_0, id_1, \dots, id_{r-1})$, the client generates two keys derived from the master key $K$:
+The encrypted index, referred to as the TSet, is implemented as a dictionary [@Cash2013HighlyScalableSS]. For a keyword $w$ appearing in a list of documents $D_w = (id_0, id_1, \dots, id_{r-1})$, the client generates two keys derived from the master key $K$:
 
 1.  **Label Key ($K_L$):** Used to determine the storage location (label) in the dictionary.
 2.  **Identifier Key ($K_I$):** Used to encrypt the document identifier.
@@ -73,11 +75,11 @@ The encrypted index, referred to as the TSet, is implemented as a dictionary. Fo
 For each document $id_c$ at index $c$ in the list, the client computes a label $l$ and a ciphertext $e$:
 $$ l \leftarrow F(K_L, c) $$
 $$ e \leftarrow \text{Enc}(K_I, id_c) $$
-The TSet stores the mapping $TSet[l] = e$.
+where $F$ is a pseudo-random function (PRF) used to generate unpredictable labels, and $\text{Enc}$ is a symmetric encryption algorithm. The TSet stores the mapping $TSet[l] = e$ [@Curtmola2006SearchableSE].
 
 #### Search Protocol
 
-To perform a search for keyword $w$, the protocol proceeds as follows:
+To perform a search for keyword $w$, the protocol proceeds as follows [@Cash2013HighlyScalableSS]:
 
 1.  **Token Generation:** The client computes the keys $K_L$ and $K_I$ specific to $w$ and sends them to the server as the search token.
 2.  **Server Execution:**
@@ -86,19 +88,19 @@ To perform a search for keyword $w$, the protocol proceeds as follows:
     -   If found, it retrieves $e$, decrypts it using $K_I$ to obtain the document identifier $id_c$, and increments $c$.
     -   The process stops when a label is not found.
 
-This protocol ensures that the leakage is limited strictly to the search pattern and the access pattern. The server learns the number of results ($r$) and which documents contain the keyword, but gains no information about the keyword's value or the contents of non-retrieved documents.
+This protocol ensures that the leakage is limited strictly to the search pattern and the access pattern. The server learns the number of results ($r$) and which documents contain the keyword, but gains no information about the keyword's value or the contents of non-retrieved documents [@Curtmola2006SearchableSE].
 
-### Boolean Queries (OXT Protocol)
+### Boolean Queries (OXT Protocol) {#sec-oxt}
 
 For conjunctive queries (e.g., "search for documents containing $w_1 \land w_2 \dots \land w_n$"), simply intersecting the result sets of single-keyword searches leaks the document lists for all keywords. To avoid this, our prototype implements the **Oblivious Cross-Tags (OXT)** protocol proposed by [@Cash2013HighlyScalableSS].
 
 OXT minimizes leakage by selecting the least frequent keyword as the "pivot" ($w_1$). The server retrieves candidate documents for $w_1$ and then obliviously checks if these candidates also contain the other keywords ($w_2, \dots, w_n$) using a precomputed index called the XSet.
 
-The scheme relies on computations in a cyclic group $\mathbb{G}$ of prime order $p$ with generator $g$. We use integer modulation where $\mathbb{G} = \mathbb{Z}_p^*$ (specifically a large prime $p$ as defined in NIST curves, though we operate in the integer field).
+The scheme relies on computations in a cyclic group $\mathbb{G}$ of prime order $p$ with generator $g$. In practice, $p$ should be a large safe prime (a prime of the form $p = 2q + 1$ where $q$ is also prime) to ensure the discrete logarithm problem remains computationally hard [@Cash2013HighlyScalableSS]. We use $\mathbb{Z}_p^*$ as the underlying group with modular arithmetic operations.
 
-#### Data Structures
+#### Data Structures {#sec-oxt-data}
 
-The server stores two main data structures:
+The server stores two main data structures [@Cash2013HighlyScalableSS]:
 
 1.  **TSet (Tuple Set):** Contains the inverted list for the pivot keyword. For a keyword $w$ and its $c$-th matching document with identifier $id$, the TSet stores a tuple:
     $$ T[w, c] = \langle e, y \rangle $$
@@ -106,15 +108,15 @@ The server stores two main data structures:
     - $e \leftarrow \text{Enc}(K_e, id)$ is the encrypted document identifier.
     - $y \leftarrow xid \cdot z_c^{-1} \pmod{p-1}$.
     
-    Here, $xid$ is a semi-static blind for the document ID derived as $xid = F_p(K_I, id)$, and $z_c$ is a dynamic blinding factor specific to the keyword instance, derived as $z_c = F_p(K_Z, w || c)$.
+    Here, $xid$ is a semi-static blind for the document ID derived as $xid = F_p(K_I, id)$, and $z_c$ is a dynamic blinding factor specific to the keyword instance, derived as $z_c = F_p(K_Z, w || c)$. The notation $F_p$ denotes a pseudo-random function that outputs values in the appropriate range for modular arithmetic operations. The protocol uses distinct keys: $K_I$ for document blinding, $K_Z$ for position-specific blinding, $K_X$ for keyword tags, and $K_e$ for encryption.
 
 2.  **XSet (Cross-Tag Set):** Contains membership tags used to filter candidates. For every keyword $w$ appearing in document $id$, we store:
     $$ XSet \ni g^{xtag(w) \cdot xid} \pmod p $$
     where $xtag(w) = F_p(K_X, w)$ is a blinded tag for the keyword.
 
-#### Search Protocol
+#### Search Protocol {#sec-oxt-search}
 
-To perform a conjunctive search for $w_1 \land w_2$:
+To perform a conjunctive search for $w_1 \land w_2$ [@Cash2013HighlyScalableSS]:
 
 1.  **Token Generation:** The client sends a search token for the pivot $w_1$ to the server. The server retrieves the $r$ tuples from the TSet.
 2.  **XToken Calculation:** For each retrieved tuple (indexed by $c \in [1, r]$), the client computes a "cross-token" (xtoken) for the secondary keyword $w_2$:
@@ -126,7 +128,7 @@ To perform a conjunctive search for $w_1 \land w_2$:
     
     The server checks if this resulting value exists in the **XSet**. If it does, the intersection is valid, and the server returns the encrypted identifier $e$.
 
-**Leakage Profile:** The OXT protocol reveals the access pattern of the pivot keyword ($w_1$) and the result pattern of the intersection ($w_1 \land w_2$). Crucially, it hides the access pattern of the non-pivot keywords ($w_2$). The server learns the *conditional* probability: "Given document $D$ contains $w_1$, does it also contain $w_2$?" but does not learn if a document contains $w_2$ if it does not contain $w_1$.
+**Leakage Profile:** The OXT protocol reveals the access pattern of the pivot keyword ($w_1$) and the result pattern of the intersection ($w_1 \land w_2$) [@Cash2013HighlyScalableSS]. Crucially, it hides the access pattern of the non-pivot keywords ($w_2$). The server learns the *conditional* probability: "Given document $D$ contains $w_1$, does it also contain $w_2$?" but does not learn if a document contains $w_2$ if it does not contain $w_1$.
 
 ### Substring Search
 
@@ -136,7 +138,7 @@ To enforce correct ordering, we implement the method proposed by [@Faber2015Rich
 
 #### Indexing Strategy
 
-For a given text and a fixed size $q$, we extract:
+For a given text and a fixed size $q$, we extract [@Faber2015RichQO]:
 
 1.  **Gram Tokens ($G$):** Every substring of length $q$.
 2.  **Adjacency Tokens ($A$):** Special tokens representing two specific grams appearing consecutively.
@@ -153,9 +155,9 @@ Consider a search for the pattern `"test"` with $q=3$.
 3.  **Boolean Query:** The substring search is transformed into a conjunctive query:
     $$ \text{Query} = G_1 \land G_2 \land A_1 $$
 
-By requiring the presence of the adjacency token $A_1$, we ensure that "tes" and "est" are not just present in the document, but present in the correct order to form "test". This logic is built directly on top of the Boolean OXT scheme described above, inheriting its security properties.
+By requiring the presence of the adjacency token $A_1$, we ensure that "tes" and "est" are not just present in the document, but present in the correct order to form "test" [@Faber2015RichQO]. This logic is built directly on top of the Boolean OXT scheme described in @sec-oxt, inheriting its security properties.
 
-**Leakage:** Since the query is executed as a boolean conjunction of tokens, the leakage corresponds to the OXT leakage on the generated $q$-grams. The server learns the access pattern of the "pivot token" (the least frequent $q$-gram or adjacency token in the pattern) and the final result set (documents containing the full substring). The frequency of other component $q$-grams remains hidden.
+**Leakage:** Since the query is executed as a boolean conjunction of tokens, the leakage corresponds to the OXT leakage on the generated $q$-grams [@Cash2013HighlyScalableSS; @Faber2015RichQO]. The server learns the access pattern of the "pivot token" (the least frequent $q$-gram or adjacency token in the pattern) and the final result set (documents containing the full substring). The frequency of other component $q$-grams remains hidden.
 
 While this increases the index size (adding $O(N)$ adjacency tokens), it provides precise substring search capabilities without false positives due to reordering.
 
