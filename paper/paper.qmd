@@ -522,9 +522,9 @@ bbox_props = dict(boxstyle="round,pad=0.3", fc="white", ec="black", lw=1.0, alph
 
 for i, v in enumerate(search_bool['Mean_ms']):
     if v > max_val / 10:
-        plt.text(v * 0.8, i, f"{v/1000:.1f} s", va='center', ha='right', fontsize=8, color='black', bbox=bbox_props)
+        plt.text(v * 0.8, i, f"{v:.2f} ms", va='center', ha='right', fontsize=8, color='black', bbox=bbox_props)
     else:
-        plt.text(v * 1.1, i, f"{v:.3f} ms", va='center', ha='left', fontsize=8)
+        plt.text(v * 1.1, i, f"{v:.2f} ms", va='center', ha='left', fontsize=8)
 
 plt.show()
 ```
