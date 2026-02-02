@@ -163,7 +163,7 @@ While this increases the index size (adding $O(N)$ adjacency tokens), it provide
 
 # Implementation
 
-The prototype is implemented in **C#** using **.NET 8**, a cross-platform framwork that would be suitable for production deployment. The solution is organized into several projects to separate concerns: `SSE.Core`, `SSE.Client`, `SSE.Server`, `SSE.Cryptography`, and `SSE.CLI`.
+The prototype is implemented in **C#** using **.NET 8**, a cross-platform framework that would be suitable for production deployment. The solution is organized into several projects to separate concerns: `SSE.Core`, `SSE.Client`, `SSE.Server`, `SSE.Cryptography`, and `SSE.CLI`.
 
 ## Project Structure
 
@@ -192,7 +192,7 @@ To simulate the network communication between the Client and the Server, we defi
 - **Search Tokens:** The `QueryMessage` contains the `Stag` (byte array) and a list of `ConjunctiveTokenSets`.
 
 #### Memory Management
-The current prototype loads the entire `EncryptedDatabase` into the RAM of the server process. While efficient for the experimental dataset (20 Newsgroups, approx. 20,000 documents), this approach is memory-bound. The `Dictionary` and `HashSet` structures incur overhead for object headers and pointers. As noted in the Limitations section, a production-grade system would replace these in-memory structures with a persistent Key-Value store (e.g., Redis or RocksDB) that supports efficient point lookups.
+The current prototype loads the entire `EncryptedDatabase` into the RAM of the server process. While efficient for the experimental dataset (20 Newsgroups, approx. 20,000 documents), this approach is memory-bound. The `Dictionary` and `HashSet` structures incur overhead for object headers and pointers. As noted in @sec-limitations, a production-grade system would replace these in-memory structures with a persistent Key-Value store (e.g., Redis or RocksDB) that supports efficient point lookups.
 
 ### Cryptographic Primitives
 
@@ -250,7 +250,7 @@ The `BooleanQueryScheme` class implements the OXT protocol, mapping the theoreti
 -   `DocumentIndexKey` corresponds to $K_I$ (used for $xid$).
 -   `KeywordCounterKey` corresponds to $K_Z$ (used for $z_c$).
 
-The `Setup` phase builds the `TSet` (posting lists) and the `XSet` (membership tags). The implementation explicitly calculates the blinding factors described in the method section.
+The `Setup` phase builds the `TSet` (posting lists) and the `XSet` (membership tags). The implementation explicitly calculates the blinding factors described in @sec-oxt-data.
 
 ::: {#lst-buildpostingtuple}
 
@@ -664,7 +664,7 @@ However, this security is achieved through bandwidth and computational overhead.
 
 This thesis presented the design and implementation of a Searchable Symmetric Encryption (SSE) prototype in .NET. We successfully implemented three distinct schemes: a basic single-keyword scheme, a boolean query scheme based on the OXT protocol, and a substring query scheme using $q$-grams. The prototype demonstrates that it is possible to perform complex searches on encrypted data without compromising the confidentiality of the documents. The accompanying CLI provides a user-friendly way to interact with these complex cryptographic constructs.
 
-## Limitations
+## Limitations {#sec-limitations}
 
 Despite the successful implementation, the current prototype has several limitations:
 
