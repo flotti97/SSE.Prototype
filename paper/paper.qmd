@@ -423,9 +423,11 @@ To evaluate the performance of the implemented SSE schemes, we conducted a serie
 
 ## Dataset
 
-We utilized the **20 Newsgroups** dataset (specifically the `20news-18828` version), a standard benchmark in text processing and information retrieval. Given the nature of this project, we focused on the `sci.crypt` category, which contains discussion posts about cryptography.
+We utilized the **20 Newsgroups** dataset[^20news] (specifically the `20news-18828` version), a standard benchmark in text processing and information retrieval. Given the nature of this project, we focused on the `sci.crypt` category, which contains discussion posts about cryptography.
 
-For the scalability experiments, we constructed subsets of increasing size from all collections, ranging from 10 up to 10000 documents. This real-world text data provides a realistic distribution of keyword frequencies and document lengths, offering a more accurate assessment of performance than synthetic random data.
+For the scalability experiments, we constructed subsets of increasing size from all collections, ranging from 10 up to 10000 documents. Documents in this dataset contain roughly 340–370 words per file. This real-world text data provides a realistic distribution of keyword frequencies and document lengths, offering a more accurate assessment of performance than synthetic random data.
+
+[^20news]: The 20 Newsgroups dataset is available at <http://qwone.com/~jason/20Newsgroups/>.
 
 ## Basic Scheme Performance
 
